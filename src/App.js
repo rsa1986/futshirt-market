@@ -173,6 +173,7 @@ export default function App() {
   const [shirts,setShirts]       = useState([]);
   const [shirtsLoading,setShirtsLoading] = useState(true);
   const [wishlist,setWishlist]   = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [following,setFollowing] = useState([]);
   const [selectedId,setSelectedId] = useState(null);
   const [selectedShirt,setSelectedShirt] = useState(null);
