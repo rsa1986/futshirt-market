@@ -896,8 +896,9 @@ export default function App() {
             <div onClick={()=>setPage("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
             {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
           </> : <>
-            <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>
+            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
             {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>Cadastrar</button>}
+            {isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"5px 10px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:12,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
           </>}
         </div>
       </div>
@@ -910,7 +911,10 @@ export default function App() {
           {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
           <button onClick={()=>setPage("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
           <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
-        </> : <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>}
+        </> : <>
+          <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>
+          <button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Cadastrar</button>
+        </>}
       </div>}
     </div>
   );
@@ -937,6 +941,7 @@ export default function App() {
         <p style={{ fontWeight:500 }}>Nenhuma camiseta cadastrada ainda.</p>
         <button onClick={()=>setPage("addProduct")} style={{ marginTop:12,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600 }}>Seja o primeiro a anunciar!</button>
       </div>}
+      {authModal}
       {toastEl}
     </div>
   );
@@ -958,6 +963,7 @@ export default function App() {
         </div>
         {filtered.length===0&&<div style={{ textAlign:"center",padding:"4rem 1rem",color:C.gray400 }}><div style={{ fontSize:40,marginBottom:12 }}>🔍</div><p style={{ margin:0,fontWeight:500 }}>Nenhuma camiseta encontrada.</p><button onClick={()=>{ setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null}); setSearch(""); }} style={{ marginTop:14,padding:"8px 20px",background:C.green,color:C.white,border:"none",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600 }}>Limpar filtros</button></div>}
       </>}
+      {authModal}
       {toastEl}
     </div>
   );
@@ -1013,6 +1019,7 @@ export default function App() {
         ?<div style={{ textAlign:"center",padding:"4rem 1rem",color:C.gray400 }}><div style={{ fontSize:44,marginBottom:12 }}>♡</div><p>Sua lista está vazia.</p><button onClick={()=>setPage("catalog")} style={{ marginTop:14,padding:"8px 20px",background:C.green,color:C.white,border:"none",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600 }}>Explorar catálogo →</button></div>
         :<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{shirts.filter(s=>wishlist.includes(s.id)).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>
       }
+      {authModal}
       {toastEl}
     </div>
   );
