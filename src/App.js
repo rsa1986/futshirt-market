@@ -26,10 +26,17 @@ const CONDITIONS = ["Nova","Usada"];
 const RARITIES   = ["Comum","Rara","Muito Rara","Lendária"];
 const SIZES      = ["PP","P","M","G","GG"];
 const PRICES     = [{ id:"all",label:"Qualquer preço" },{ id:"0-300",label:"Até R$ 300" },{ id:"300-800",label:"R$ 300–800" },{ id:"800-2000",label:"R$ 800–2000" },{ id:"2000+",label:"Acima de R$ 2000" }];
-const BANNERS = [
+const BANNERS_DEFAULT = [
   { id:1,label:"LANÇAMENTO",title:"Camisetas Lendárias",sub:"Peças raras dos anos 80 e 90 com procedência garantida",cta:"Explorar coleção",grad:"linear-gradient(120deg,#14532d 0%,#166534 60%,#15803d 100%)",accent:"#4ade80",img:"👑" },
   { id:2,label:"PROMOÇÃO",title:"Até 40% OFF",sub:"Colecionadores verificados com descontos exclusivos esta semana",cta:"Ver ofertas",grad:"linear-gradient(120deg,#1e3a5f 0%,#1d4ed8 60%,#2563eb 100%)",accent:"#93c5fd",img:"🏷️" },
   { id:3,label:"DESTAQUE",title:"Copa do Mundo 2002",sub:"Reviva a glória do pentacampeonato com réplicas originais",cta:"Ver camisetas",grad:"linear-gradient(120deg,#78350f 0%,#b45309 60%,#d97706 100%)",accent:"#fcd34d",img:"🏆" },
+];
+const BANNER_THEMES = [
+  { id:"green",  label:"🌿 Verde",   grad:"linear-gradient(120deg,#14532d 0%,#166534 60%,#15803d 100%)",accent:"#4ade80" },
+  { id:"blue",   label:"🔵 Azul",    grad:"linear-gradient(120deg,#1e3a5f 0%,#1d4ed8 60%,#2563eb 100%)",accent:"#93c5fd" },
+  { id:"amber",  label:"🟡 Dourado", grad:"linear-gradient(120deg,#78350f 0%,#b45309 60%,#d97706 100%)",accent:"#fcd34d" },
+  { id:"red",    label:"🔴 Vermelho",grad:"linear-gradient(120deg,#7f1d1d 0%,#b91c1c 60%,#ef4444 100%)",accent:"#fca5a5" },
+  { id:"purple", label:"🟣 Roxo",    grad:"linear-gradient(120deg,#3b0764 0%,#7c3aed 60%,#8b5cf6 100%)",accent:"#c4b5fd" },
 ];
 
 /* ── HELPERS ── */
@@ -81,12 +88,14 @@ function Spinner() {
 }
 
 /* ── BANNER ── */
-function BannerCarousel({ onCta }) {
+function BannerCarousel({ onCta, banners }) {
+  const items = (banners && banners.length > 0) ? banners : BANNERS_DEFAULT;
   const [idx,setIdx] = useState(0);
   const timer = useRef(null);
-  const go = i => setIdx((i+BANNERS.length)%BANNERS.length);
+  const go = i => setIdx((i+items.length)%items.length);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{ timer.current=setInterval(()=>go(idx+1),4000); return()=>clearInterval(timer.current); },[idx]);
-  const b = BANNERS[idx];
+  const b = items[idx];
   return (
     <div style={{ borderRadius:18,overflow:"hidden",marginBottom:28,position:"relative",background:b.grad,minHeight:180 }}>
       <div style={{ padding:"2rem 2rem 1.75rem",position:"relative",zIndex:1 }}>
@@ -97,7 +106,7 @@ function BannerCarousel({ onCta }) {
       </div>
       <div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>
       <div style={{ position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6 }}>
-        {BANNERS.map((_,i)=><div key={i} onClick={()=>{ clearInterval(timer.current); go(i); }} style={{ width:i===idx?20:7,height:7,borderRadius:99,background:i===idx?"rgba(255,255,255,.95)":"rgba(255,255,255,.35)",cursor:"pointer",transition:"all .3s" }} />)}
+        {items.map((_,i)=><div key={i} onClick={()=>{ clearInterval(timer.current); go(i); }} style={{ width:i===idx?20:7,height:7,borderRadius:99,background:i===idx?"rgba(255,255,255,.95)":"rgba(255,255,255,.35)",cursor:"pointer",transition:"all .3s" }} />)}
       </div>
       {["←","→"].map((a,d)=><button key={a} onClick={()=>{ clearInterval(timer.current); go(idx+(d?1:-1)); }} style={{ position:"absolute",top:"50%",transform:"translateY(-50%)",[d?"right":"left"]:10,background:"rgba(255,255,255,.2)",border:"none",color:C.white,borderRadius:"50%",width:30,height:30,fontSize:14,cursor:"pointer" }}>{a}</button>)}
     </div>
@@ -326,6 +335,9 @@ export default function App() {
   const [showLoginPwd,setShowLoginPwd] = useState(false);
   const [showAuth,setShowAuth]         = useState(false);
   const [adminTab,setAdminTab]         = useState("users");
+  const [banners,setBanners]           = useState(BANNERS_DEFAULT);
+  const [adminBannerEdit,setAdminBannerEdit] = useState({});
+  const [bannerSaving,setBannerSaving] = useState(null);
 
   // ── load session ──
   useEffect(()=>{
@@ -346,7 +358,18 @@ export default function App() {
   // ── load shirts ──
   useEffect(()=>{
     loadShirts();
+    loadBanners();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
+
+  // ── inicializa edição de banners ao abrir a aba ──
+  useEffect(()=>{
+    if(adminTab==="banners"&&banners.length>0){
+      const init = {};
+      banners.forEach(b=>{ init[b.id]={ label:b.label,title:b.title,sub:b.sub,cta:b.cta,img:b.img,grad:b.grad,accent:b.accent }; });
+      setAdminBannerEdit(init);
+    }
+  },[adminTab,banners]);
 
   // ── load sellers when tab is opened ──
   useEffect(()=>{
@@ -382,6 +405,23 @@ export default function App() {
     const { data } = await supabase.from("profiles").select("*").order("name",{ ascending:true });
     setSellers(data||[]);
     setSellersLoading(false);
+  }
+
+  async function loadBanners() {
+    const { data } = await supabase.from("banners").select("*").order("order_index",{ ascending:true });
+    if(data&&data.length>0) setBanners(data);
+  }
+
+  async function handleSaveBanner(id) {
+    setBannerSaving(id);
+    const edit = adminBannerEdit[id];
+    if(!edit){ setBannerSaving(null); return; }
+    const { error } = await supabase.from("banners").update(edit).eq("id",id);
+    if(!error){
+      setBanners(bs=>bs.map(b=>b.id===id?{...b,...edit}:b));
+      addToast("Banner atualizado!");
+    } else addToast("Erro ao salvar banner","error");
+    setBannerSaving(null);
   }
 
   async function loadWishlist(uid) {
@@ -879,7 +919,7 @@ export default function App() {
   if(page==="home") return (
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
       <NavBar />
-      <BannerCarousel onCta={()=>setPage("catalog")} />
+      <BannerCarousel onCta={()=>setPage("catalog")} banners={banners} />
       {promos.length>0&&<div style={{ marginBottom:30 }}>
         <SectionHead icon="🏷️" sub="ofertas especiais" title="Em promoção agora" action="Ver todas" onAction={()=>setPage("catalog")} />
         <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
@@ -1040,7 +1080,7 @@ export default function App() {
 
         {/* Tabs */}
         <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8 }}>
-          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"]].map(([v,l])=>(
+          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["banners","🖼️ Banners"]].map(([v,l])=>(
             <button key={v} onClick={()=>setAdminTab(v)} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
           ))}
         </div>
@@ -1094,6 +1134,54 @@ export default function App() {
                     </p>
                   </div>
                   <button onClick={()=>handleDeleteShirt(sh.id)} style={{ flexShrink:0,padding:"6px 10px",borderRadius:8,border:`1px solid ${C.red}`,background:C.redLight,color:C.red,fontSize:12,fontWeight:600,cursor:"pointer" }}>🗑️ Excluir</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tab: Banners */}
+        {adminTab==="banners"&&(
+          <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
+            {banners.map(b=>{
+              const edit = adminBannerEdit[b.id]||{};
+              const setField = (k,v) => setAdminBannerEdit(prev=>({...prev,[b.id]:{...prev[b.id],[k]:v}}));
+              const currentTheme = BANNER_THEMES.find(t=>t.grad===edit.grad);
+              return (
+                <div key={b.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,overflow:"hidden" }}>
+                  {/* Preview mini */}
+                  <div style={{ background:edit.grad||b.grad,padding:"14px 18px",position:"relative",minHeight:70 }}>
+                    <span style={{ display:"inline-flex",padding:"2px 8px",borderRadius:99,background:"rgba(255,255,255,.2)",color:"#fff",fontSize:10,fontWeight:600,letterSpacing:1 }}>{edit.label||b.label}</span>
+                    <p style={{ margin:"4px 0 2px",fontWeight:800,fontSize:15,color:"#fff" }}>{edit.title||b.title}</p>
+                    <p style={{ margin:0,fontSize:11,color:"rgba(255,255,255,.8)" }}>{edit.sub||b.sub}</p>
+                    <div style={{ position:"absolute",right:16,top:"50%",transform:"translateY(-50%)",fontSize:36,opacity:.25 }}>{edit.img||b.img}</div>
+                  </div>
+                  {/* Campos */}
+                  <div style={{ padding:"14px 16px",display:"flex",flexDirection:"column",gap:10 }}>
+                    <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
+                      {[["Label (badge)","label"],["Emoji","img"],["Título","title"],["Botão (CTA)","cta"]].map(([l,k])=>(
+                        <div key={k}>
+                          <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:3 }}>{l}</label>
+                          <input value={edit[k]||""} onChange={e=>setField(k,e.target.value)} style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box" }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:3 }}>Subtítulo</label>
+                      <input value={edit.sub||""} onChange={e=>setField("sub",e.target.value)} style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:6 }}>Tema de cor</label>
+                      <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                        {BANNER_THEMES.map(t=>(
+                          <button key={t.id} onClick={()=>{ setField("grad",t.grad); setField("accent",t.accent); }} style={{ padding:"5px 11px",borderRadius:8,border:`2px solid ${currentTheme?.id===t.id?"#111":"transparent"}`,background:t.grad,color:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",boxShadow:currentTheme?.id===t.id?"0 0 0 2px #111 inset":"none" }}>{t.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={()=>handleSaveBanner(b.id)} disabled={bannerSaving===b.id} style={{ padding:"9px 0",border:"none",borderRadius:10,background:C.green,color:C.white,fontWeight:600,fontSize:13,cursor:"pointer",opacity:bannerSaving===b.id?.7:1 }}>
+                      {bannerSaving===b.id?"Salvando...":"💾 Salvar banner"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
