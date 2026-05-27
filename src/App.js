@@ -901,7 +901,7 @@ export default function App() {
             {sellerShirts.map(sh=>(
               <div key={sh.id} style={{ display:"flex",flexDirection:"column",gap:6 }}>
                 <ShirtCard s={sh} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={id=>{ setSellerSlug(null); openShirt(id); }} />
-                {sellerSlug===user.id&&(
+                {sellerSlug===user?.id&&(
                   <div style={{ display:"flex",gap:6 }}>
                     <button onClick={()=>startEditShirt(sh)} style={{ flex:1,padding:"6px 0",background:C.white,border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:C.gray600 }}>✏️ Editar</button>
                     <button onClick={()=>handleDeleteShirt(sh.id)} style={{ padding:"6px 10px",background:C.redLight,border:`1px solid ${C.red}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:C.red }}>🗑️</button>
