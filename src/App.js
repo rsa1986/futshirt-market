@@ -324,6 +324,7 @@ export default function App() {
   const [reg,setReg]             = useState({ name:"",email:"",password:"",city:"",bio:"" });
   const [loginData,setLoginData] = useState({ email:"",password:"" });
   const [showLoginPwd,setShowLoginPwd] = useState(false);
+  const [showAuth,setShowAuth]         = useState(false);
 
   // ── load session ──
   useEffect(()=>{
@@ -351,6 +352,14 @@ export default function App() {
     if(page==="sellers") loadSellers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[page]);
+
+  // ── redireciona ao home se sair enquanto em página restrita ──
+  useEffect(()=>{
+    if(!user && !loading && ["addProduct","myProfile","wishlist"].includes(page)){
+      setPage("home");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[user,loading]);
 
   // ── inicializa form de perfil ao abrir a tela ──
   useEffect(()=>{
@@ -390,6 +399,7 @@ export default function App() {
     setAuthLoading(true); setAuthError("");
     const { error } = await supabase.auth.signInWithPassword({ email:loginData.email, password:loginData.password });
     if(error) setAuthError("Email ou senha incorretos.");
+    else setShowAuth(false);
     setAuthLoading(false);
   }
 
@@ -418,7 +428,7 @@ export default function App() {
   }
 
   async function toggleWishlist(shirtId) {
-    if(!user) return;
+    if(!user){ setShowAuth(true); setAuthStep("login"); setAuthError(""); return; }
     if(wishlist.includes(shirtId)) {
       setWishlist(w=>w.filter(x=>x!==shirtId));
       await supabase.from("wishlist").delete().eq("user_id",user.id).eq("shirt_id",shirtId);
@@ -512,6 +522,11 @@ export default function App() {
     return Object.keys(errs).length===0;
   }
 
+  function requireAuth(fn) {
+    if(user) fn();
+    else { setShowAuth(true); setAuthStep("login"); setAuthError(""); }
+  }
+
   function addToast(message, type="success") {
     const id = Date.now();
     setToasts(ts=>[...ts,{ id,message,type }]);
@@ -566,18 +581,17 @@ export default function App() {
   // ── LOADING ──
   if(loading) return <div style={{ fontFamily:"system-ui,sans-serif",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center" }}><Spinner /></div>;
 
-  // ── AUTH ──
-  if(!user) return (
-    <div style={{ fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:C.gray50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem" }}>
-      <div style={{ width:"100%",maxWidth:400 }}>
-        <div style={{ textAlign:"center",marginBottom:24 }}>
-          <div style={{ width:60,height:60,borderRadius:16,background:C.greenDark,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 12px" }}>⚽</div>
-          <h1 style={{ margin:0,fontSize:22,fontWeight:800,color:C.gray900 }}>FutShirt Market</h1>
-          <p style={{ margin:"4px 0 0",color:C.gray400,fontSize:13 }}>O marketplace dos colecionadores</p>
-        </div>
+  // ── AUTH MODAL (aparece sobre qualquer página quando ação exige login) ──
+  const authModal = showAuth && (
+    <div onClick={e=>{ if(e.target===e.currentTarget) setShowAuth(false); }} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",overflowY:"auto" }}>
+      <div style={{ width:"100%",maxWidth:400,position:"relative" }}>
+        <button onClick={()=>setShowAuth(false)} style={{ position:"absolute",top:-38,right:0,background:"rgba(255,255,255,.18)",border:"none",color:"#fff",borderRadius:8,padding:"5px 13px",cursor:"pointer",fontSize:13,fontWeight:500 }}>✕ Fechar</button>
         <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:20,padding:"1.75rem" }}>
           {authStep==="login" ? <>
-            <h3 style={{ margin:"0 0 1.25rem",fontWeight:700,fontSize:17,textAlign:"center" }}>Entrar na conta</h3>
+            <div style={{ textAlign:"center",marginBottom:"1.25rem" }}>
+              <div style={{ width:40,height:40,borderRadius:10,background:C.greenDark,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,margin:"0 auto 8px" }}>⚽</div>
+              <h3 style={{ margin:0,fontWeight:700,fontSize:17 }}>Entrar na conta</h3>
+            </div>
             {authError&&<p style={{ margin:"0 0 12px",padding:"10px 14px",background:authError.startsWith("✅")?C.greenLight:C.redLight,color:authError.startsWith("✅")?C.greenDark:C.red,borderRadius:8,fontSize:13 }}>{authError}</p>}
             <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:"1.25rem" }}>
               {[["Email","email","email"],["Senha","password","password"]].map(([l,k,t])=>(
@@ -618,6 +632,7 @@ export default function App() {
         <h2 style={{ fontWeight:700 }}>{editingShirtId?"Anúncio atualizado!":"Anúncio publicado!"}</h2>
         <p style={{ color:C.gray400 }}>Sua camiseta já está visível no catálogo.</p>
         <button onClick={()=>{ setPage("catalog"); setForm(emptyForm); setFormStep(1); setFormDone(false); setEditingShirtId(null); }} style={{ marginTop:12,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600 }}>Ver catálogo →</button>
+        {authModal}
         {toastEl}
       </div>
     );
@@ -685,6 +700,7 @@ export default function App() {
             :<button onClick={handleAddShirt} disabled={formSaving} style={{ flex:2,padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,cursor:"pointer",fontSize:14,fontWeight:600 }}>{formSaving?"Salvando...":editingShirtId?"Salvar alterações ✓":"Publicar anúncio ✓"}</button>
           }
         </div>
+        {authModal}
         {toastEl}
       </div>
     );
@@ -700,7 +716,7 @@ export default function App() {
           <div style={{ background:`linear-gradient(120deg,${C.greenDark},${C.green})`,borderRadius:18,height:90 }} />
           <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"0 4px",marginTop:-32,marginBottom:14 }}>
             <div style={{ border:`3px solid ${C.white}`,borderRadius:"50%" }}><Avatar name={sellerProfile.name} size={64} src={sellerProfile.avatar_url} /></div>
-            <button onClick={()=>setContactModal(sellerProfile)} style={{ padding:"6px 14px",border:`1px solid ${C.gray200}`,borderRadius:9,background:C.white,cursor:"pointer",fontSize:13,marginBottom:4 }}>💬 Mensagem</button>
+            <button onClick={()=>requireAuth(()=>setContactModal(sellerProfile))} style={{ padding:"6px 14px",border:`1px solid ${C.gray200}`,borderRadius:9,background:C.white,cursor:"pointer",fontSize:13,marginBottom:4 }}>💬 Mensagem</button>
           </div>
           <h2 style={{ margin:"0 0 2px",fontWeight:700,fontSize:20 }}>{sellerProfile.name}</h2>
           <p style={{ margin:"0 0 8px",color:C.gray400,fontSize:13 }}>📍 {sellerProfile.location||"—"}</p>
@@ -730,6 +746,7 @@ export default function App() {
           </div>
         </>}
         {contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />}
+        {authModal}
         {toastEl}
       </div>
     );
@@ -783,7 +800,7 @@ export default function App() {
                 </div>
                 <div style={{ display:"flex",gap:10 }}>
                   <button onClick={()=>toggleWishlist(s.id)} style={{ flex:1,padding:"11px 0",border:`1px solid ${C.gray200}`,borderRadius:12,background:wishlist.includes(s.id)?C.redLight:C.white,color:wishlist.includes(s.id)?C.red:C.gray900,cursor:"pointer",fontSize:14,fontWeight:500 }}>{wishlist.includes(s.id)?"♥ Favoritado":"♡ Favoritar"}</button>
-                  <button onClick={()=>sl&&setContactModal(sl)} style={{ flex:2,padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,cursor:"pointer",fontSize:14,fontWeight:700 }}>💬 Entrar em contato</button>
+                  <button onClick={()=>requireAuth(()=>sl&&setContactModal(sl))} style={{ flex:2,padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,cursor:"pointer",fontSize:14,fontWeight:700 }}>💬 Entrar em contato</button>
                 </div>
               </div>
             </div>
@@ -796,6 +813,7 @@ export default function App() {
           </div>
         )}
         {contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />}
+        {authModal}
         {toastEl}
       </div>
     );
@@ -817,12 +835,17 @@ export default function App() {
         </div>}
         {/* Ações à direita */}
         <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
-          <button onClick={()=>setPage("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
-            ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
-          </button>
-          {!isMobile&&<button onClick={()=>setPage("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
-          <div onClick={()=>setPage("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
-          {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
+          {user ? <>
+            <button onClick={()=>setPage("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
+              ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
+            </button>
+            {!isMobile&&<button onClick={()=>setPage("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
+            <div onClick={()=>setPage("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
+            {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
+          </> : <>
+            <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>
+            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>Cadastrar</button>}
+          </>}
         </div>
       </div>
       {/* Segunda linha no mobile — links + anunciar + sair */}
@@ -830,8 +853,10 @@ export default function App() {
         {[["home","🏠 Home"],["catalog","📋 Catálogo"],["sellers","👥 Vendedores"]].map(([v,l])=>(
           <button key={v} onClick={()=>setPage(v)} style={{ flex:1,background:page===v?C.greenLight:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600,whiteSpace:"nowrap" }}>{l}</button>
         ))}
-        <button onClick={()=>setPage("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
-        <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
+        {user ? <>
+          <button onClick={()=>setPage("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
+          <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
+        </> : <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>}
       </div>}
     </div>
   );
@@ -919,6 +944,7 @@ export default function App() {
             })}
           </div>
         )}
+        {authModal}
         {toastEl}
       </div>
     );
