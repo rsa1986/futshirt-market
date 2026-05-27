@@ -1006,6 +1006,12 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {/* Sair da conta */}
+      <button onClick={handleLogout} style={{ width:"100%",marginTop:12,padding:"11px 0",border:`1px solid ${C.red}`,borderRadius:12,background:"#fff",cursor:"pointer",fontSize:14,fontWeight:500,color:C.red }}>
+        Sair da conta
+      </button>
+      {authModal}
       {toastEl}
     </div>
   );
