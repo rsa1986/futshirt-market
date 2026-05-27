@@ -737,21 +737,73 @@ export default function App() {
     </div>
   );
 
+  // ── NAV ──
+  const NavBar = () => (
+    <div style={{ borderBottom:`1px solid ${C.gray100}`,marginBottom:20 }}>
+      {/* Linha principal */}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"1rem 0 0.6rem" }}>
+        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+          <div style={{ width:30,height:30,borderRadius:8,background:C.greenDark,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15 }}>⚽</div>
+          <span style={{ fontWeight:800,fontSize:16,color:C.gray900,letterSpacing:-.3 }}>FutShirt</span>
+        </div>
+        {/* Links de navegação — ocultos no mobile */}
+        {!isMobile&&<div style={{ display:"flex",gap:4 }}>
+          {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setPage(v)} style={{ background:page===v?C.greenLight:"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600 }}>{l}</button>
+          ))}
+          {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ background:page==="admin"?"#fef3c7":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="admin"?600:400,color:page==="admin"?C.amber:C.gray600 }}>⚙️ Admin</button>}
+        </div>}
+        {/* Ações à direita */}
+        <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
+          {user ? <>
+            <button onClick={()=>setPage("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
+              ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
+            </button>
+            {!isMobile&&<button onClick={()=>setPage("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
+            <div onClick={()=>setPage("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
+            {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
+          </> : <>
+            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
+            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>Cadastrar</button>}
+          </>}
+        </div>
+      </div>
+      {/* Segunda linha no mobile — links + anunciar + sair */}
+      {isMobile&&<div style={{ display:"flex",gap:2,paddingBottom:"0.5rem",overflowX:"auto" }}>
+        {[["home","🏠 Home"],["catalog","📋 Catálogo"],["sellers","👥 Vendedores"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setPage(v)} style={{ flex:1,background:page===v?C.greenLight:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600,whiteSpace:"nowrap" }}>{l}</button>
+        ))}
+        {user ? <>
+          {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
+          <button onClick={()=>setPage("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
+          <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
+        </> : <>
+          <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>
+          <button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Cadastrar</button>
+        </>}
+      </div>}
+    </div>
+  );
+
   // ── ADD PRODUCT ──
   if(page==="addProduct") {
     if(formDone) return (
-      <div style={{ fontFamily:"system-ui,sans-serif",textAlign:"center",padding:"4rem 1rem" }}>
-        <div style={{ fontSize:56,marginBottom:12 }}>🎉</div>
-        <h2 style={{ fontWeight:700 }}>{editingShirtId?"Anúncio atualizado!":"Anúncio publicado!"}</h2>
-        <p style={{ color:C.gray400 }}>Sua camiseta já está visível no catálogo.</p>
-        <button onClick={()=>{ setPage("catalog"); setForm(emptyForm); setFormStep(1); setFormDone(false); setEditingShirtId(null); }} style={{ marginTop:12,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600 }}>Ver catálogo →</button>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
+        <NavBar />
+        <div style={{ textAlign:"center",padding:"3rem 1rem" }}>
+          <div style={{ fontSize:56,marginBottom:12 }}>🎉</div>
+          <h2 style={{ fontWeight:700 }}>{editingShirtId?"Anúncio atualizado!":"Anúncio publicado!"}</h2>
+          <p style={{ color:C.gray400 }}>Sua camiseta já está visível no catálogo.</p>
+          <button onClick={()=>{ setPage("catalog"); setForm(emptyForm); setFormStep(1); setFormDone(false); setEditingShirtId(null); }} style={{ marginTop:12,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600 }}>Ver catálogo →</button>
+        </div>
         {authModal}
         {toastEl}
       </div>
     );
     return (
       <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:10,padding:"1rem 0 1.5rem" }}>
+        <NavBar />
+        <div style={{ display:"flex",alignItems:"center",gap:10,padding:"0.5rem 0 1.5rem" }}>
           <button onClick={()=>{ setPage(editingShirtId?"sellers":"home"); setEditingShirtId(null); setForm(emptyForm); setFormStep(1); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer" }}>←</button>
           <h2 style={{ margin:0,fontWeight:700,fontSize:18 }}>{editingShirtId?"Editar camiseta":"Cadastrar camiseta"}</h2>
         </div>
@@ -824,7 +876,8 @@ export default function App() {
     const sellerShirts = shirts.filter(sh=>sh.seller_id===sellerSlug);
     return (
       <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
-        <button onClick={()=>{ setSellerSlug(null); setSellerProfile(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"1rem 0" }}>← Voltar</button>
+        <NavBar />
+        <button onClick={()=>{ setSellerSlug(null); setSellerProfile(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"0.25rem 0 1rem" }}>← Voltar</button>
         {!sellerProfile ? <Spinner /> : <>
           <div style={{ background:`linear-gradient(120deg,${C.greenDark},${C.green})`,borderRadius:18,height:90 }} />
           <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"0 4px",marginTop:-32,marginBottom:14 }}>
@@ -869,7 +922,8 @@ export default function App() {
   if(selectedId) {
     return (
       <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
-        <button onClick={()=>{ setSelectedId(null); setSelectedShirt(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"1rem 0" }}>← Voltar</button>
+        <NavBar />
+        <button onClick={()=>{ setSelectedId(null); setSelectedShirt(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"0.25rem 0 1rem" }}>← Voltar</button>
         {!selectedShirt ? <Spinner /> : (()=>{
           const s = selectedShirt;
           const sl = s.profiles;
@@ -932,54 +986,6 @@ export default function App() {
       </div>
     );
   }
-  // ── NAV ──
-  const NavBar = () => (
-    <div style={{ borderBottom:`1px solid ${C.gray100}`,marginBottom:20 }}>
-      {/* Linha principal */}
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"1rem 0 0.6rem" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-          <div style={{ width:30,height:30,borderRadius:8,background:C.greenDark,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15 }}>⚽</div>
-          <span style={{ fontWeight:800,fontSize:16,color:C.gray900,letterSpacing:-.3 }}>FutShirt</span>
-        </div>
-        {/* Links de navegação — ocultos no mobile */}
-        {!isMobile&&<div style={{ display:"flex",gap:4 }}>
-          {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setPage(v)} style={{ background:page===v?C.greenLight:"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600 }}>{l}</button>
-          ))}
-          {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ background:page==="admin"?"#fef3c7":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="admin"?600:400,color:page==="admin"?C.amber:C.gray600 }}>⚙️ Admin</button>}
-        </div>}
-        {/* Ações à direita */}
-        <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
-          {user ? <>
-            <button onClick={()=>setPage("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
-              ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
-            </button>
-            {!isMobile&&<button onClick={()=>setPage("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
-            <div onClick={()=>setPage("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
-            {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
-          </> : <>
-            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
-            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>Cadastrar</button>}
-          </>}
-        </div>
-      </div>
-      {/* Segunda linha no mobile — links + anunciar + sair */}
-      {isMobile&&<div style={{ display:"flex",gap:2,paddingBottom:"0.5rem",overflowX:"auto" }}>
-        {[["home","🏠 Home"],["catalog","📋 Catálogo"],["sellers","👥 Vendedores"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setPage(v)} style={{ flex:1,background:page===v?C.greenLight:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600,whiteSpace:"nowrap" }}>{l}</button>
-        ))}
-        {user ? <>
-          {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
-          <button onClick={()=>setPage("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
-          <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
-        </> : <>
-          <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>
-          <button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Cadastrar</button>
-        </>}
-      </div>}
-    </div>
-  );
-
   // ── HOME ──
   if(page==="home") return (
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
@@ -1138,10 +1144,8 @@ export default function App() {
   // ── MY PROFILE ──
   if(page==="myProfile") return (
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
-      <div style={{ display:"flex",alignItems:"center",gap:10,padding:"1rem 0 1.25rem",borderBottom:`1px solid ${C.gray100}`,marginBottom:24 }}>
-        <button onClick={()=>setPage("home")} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer" }}>←</button>
-        <h2 style={{ margin:0,fontWeight:700,fontSize:18 }}>Meu Perfil</h2>
-      </div>
+      <NavBar />
+      <h2 style={{ margin:"0 0 1.5rem",fontWeight:700,fontSize:18 }}>Meu Perfil</h2>
 
       {/* Avatar + email */}
       <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginBottom:24 }}>
