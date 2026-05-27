@@ -87,6 +87,44 @@ function Spinner() {
   return <div style={{ textAlign:"center",padding:"3rem",color:C.gray400 }}><div style={{ fontSize:32,marginBottom:8 }}>⏳</div><p>Carregando...</p></div>;
 }
 
+/* ── SHIMMER ── */
+;(function injectShimmer(){
+  if(typeof document==="undefined"||document.getElementById("fsm-shimmer")) return;
+  const s=document.createElement("style");
+  s.id="fsm-shimmer";
+  s.textContent="@keyframes fsm-shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}";
+  document.head.appendChild(s);
+})();
+const shimmerBase = { background:"linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)", backgroundSize:"1200px 100%", animation:"fsm-shimmer 1.3s infinite linear", borderRadius:6 };
+function SkeletonCard() {
+  return (
+    <div style={{ background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden" }}>
+      <div style={{ ...shimmerBase,height:140,borderRadius:0 }} />
+      <div style={{ padding:"10px 12px 13px",display:"flex",flexDirection:"column",gap:8 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+          <div style={{ ...shimmerBase,height:12,width:"60%" }} />
+          <div style={{ ...shimmerBase,height:16,width:"22%",borderRadius:99 }} />
+        </div>
+        <div style={{ ...shimmerBase,height:10,width:"45%" }} />
+        <div style={{ ...shimmerBase,height:10,width:"35%" }} />
+        <div style={{ ...shimmerBase,height:14,width:"50%",marginTop:2 }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── EMPTY STATE ── */
+function EmptyState({ emoji, title, sub, action, onAction }) {
+  return (
+    <div style={{ textAlign:"center",padding:"3rem 1rem" }}>
+      <div style={{ fontSize:52,marginBottom:14 }}>{emoji}</div>
+      <h3 style={{ margin:"0 0 8px",fontWeight:700,fontSize:17,color:"#111827" }}>{title}</h3>
+      {sub&&<p style={{ margin:"0 0 18px",fontSize:14,color:"#9ca3af",lineHeight:1.6,maxWidth:280,marginLeft:"auto",marginRight:"auto" }}>{sub}</p>}
+      {action&&<button onClick={onAction} style={{ padding:"10px 26px",background:"#16a34a",color:"#fff",border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600 }}>{action}</button>}
+    </div>
+  );
+}
+
 /* ── BANNER ── */
 function BannerCarousel({ onCta, banners }) {
   const items = (banners && banners.length > 0) ? banners : BANNERS_DEFAULT;
@@ -117,6 +155,7 @@ function BannerCarousel({ onCta, banners }) {
 function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
   const disc = s.price_old ? Math.round((1 - s.price / s.price_old) * 100) : 0;
   const photo = (s.photos || [])[0] || "⚽";
+  const isNew = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 48 * 60 * 60 * 1000;
 
   return (
     <div
@@ -141,10 +180,19 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
           </span>
         )}
 
-        {disc > 0 && (
-          <span style={{ position: "absolute", top: 8, left: 8, background: C.red, color: C.white, fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6 }}>
-            -{disc}%
-          </span>
+        {(disc > 0 || isNew) && (
+          <div style={{ position:"absolute",top:8,left:8,display:"flex",flexDirection:"column",gap:3 }}>
+            {disc > 0 && (
+              <span style={{ background:C.red,color:C.white,fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start" }}>
+                -{disc}%
+              </span>
+            )}
+            {isNew && (
+              <span style={{ background:C.green,color:C.white,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start" }}>
+                ✨ Novo
+              </span>
+            )}
+          </div>
         )}
 
         <button
@@ -338,6 +386,7 @@ export default function App() {
   const [banners,setBanners]           = useState(BANNERS_DEFAULT);
   const [adminBannerEdit,setAdminBannerEdit] = useState({});
   const [bannerSaving,setBannerSaving] = useState(null);
+  const [sellerSearch,setSellerSearch] = useState("");
 
   // ── load session ──
   useEffect(()=>{
@@ -576,6 +625,18 @@ export default function App() {
   function requireAuth(fn) {
     if(user) fn();
     else { setShowAuth(true); setAuthStep("login"); setAuthError(""); }
+  }
+
+  async function handleShare(shirt) {
+    const url = window.location.href;
+    const title = `${shirt.team}${shirt.edition?" – "+shirt.edition:""} | FutShirt Market`;
+    const text = `Confira esta camiseta: ${shirt.team}${shirt.edition?" "+shirt.edition:""} por R$ ${Number(shirt.price).toLocaleString("pt-BR")}`;
+    if(navigator.share) {
+      try { await navigator.share({ title, text, url }); } catch(e) { /* dismissed */ }
+    } else {
+      try { await navigator.clipboard.writeText(url); addToast("🔗 Link copiado!"); }
+      catch { addToast("Não foi possível copiar o link","error"); }
+    }
   }
 
   function addToast(message, type="success") {
@@ -850,8 +911,9 @@ export default function App() {
                   {s.price_old&&<><span style={{ fontSize:14,color:C.gray400,textDecoration:"line-through" }}>R$ {Number(s.price_old).toLocaleString("pt-BR")}</span><span style={{ background:C.redLight,color:C.red,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:6 }}>-{Math.round((1-s.price/s.price_old)*100)}%</span></>}
                   <span style={{ fontSize:12,color:C.gray400,marginLeft:"auto" }}>+ frete</span>
                 </div>
-                <div style={{ display:"flex",gap:10 }}>
+                <div style={{ display:"flex",gap:8 }}>
                   <button onClick={()=>toggleWishlist(s.id)} style={{ flex:1,padding:"11px 0",border:`1px solid ${C.gray200}`,borderRadius:12,background:wishlist.includes(s.id)?C.redLight:C.white,color:wishlist.includes(s.id)?C.red:C.gray900,cursor:"pointer",fontSize:14,fontWeight:500 }}>{wishlist.includes(s.id)?"♥ Favoritado":"♡ Favoritar"}</button>
+                  <button onClick={()=>handleShare(s)} title="Compartilhar" style={{ padding:"11px 14px",border:`1px solid ${C.gray200}`,borderRadius:12,background:C.white,color:C.gray600,cursor:"pointer",fontSize:16,flexShrink:0 }}>📤</button>
                   <button onClick={()=>requireAuth(()=>sl&&setContactModal(sl))} style={{ flex:2,padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,cursor:"pointer",fontSize:14,fontWeight:700 }}>💬 Entrar em contato</button>
                 </div>
               </div>
@@ -935,11 +997,15 @@ export default function App() {
           {featured.slice(0,4).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
-      {shirts.length===0&&!shirtsLoading&&<div style={{ textAlign:"center",padding:"3rem",color:C.gray400 }}>
-        <div style={{ fontSize:48,marginBottom:12 }}>⚽</div>
-        <p style={{ fontWeight:500 }}>Nenhuma camiseta cadastrada ainda.</p>
-        <button onClick={()=>setPage("addProduct")} style={{ marginTop:12,padding:"10px 24px",background:C.green,color:C.white,border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontWeight:600 }}>Seja o primeiro a anunciar!</button>
-      </div>}
+      {shirts.length===0&&!shirtsLoading&&(
+        <EmptyState
+          emoji="⚽"
+          title="Seja o primeiro a anunciar!"
+          sub="O mercado ainda está vazio. Cadastre sua camiseta e encontre compradores."
+          action="+ Anunciar camiseta"
+          onAction={()=>requireAuth(()=>setPage("addProduct"))}
+        />
+      )}
       {authModal}
       {toastEl}
     </div>
@@ -956,11 +1022,23 @@ export default function App() {
           {[["relevancia","Relevância"],["preco_asc","Menor preço"],["preco_desc","Maior preço"],["avaliacao","Melhor avaliação"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
       </div>
-      {shirtsLoading ? <Spinner /> : <>
+      {shirtsLoading ? (
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>
+          {[...Array(6)].map((_,i)=><SkeletonCard key={i} />)}
+        </div>
+      ) : <>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>
           {filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
-        {filtered.length===0&&<div style={{ textAlign:"center",padding:"4rem 1rem",color:C.gray400 }}><div style={{ fontSize:40,marginBottom:12 }}>🔍</div><p style={{ margin:0,fontWeight:500 }}>Nenhuma camiseta encontrada.</p><button onClick={()=>{ setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null}); setSearch(""); }} style={{ marginTop:14,padding:"8px 20px",background:C.green,color:C.white,border:"none",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600 }}>Limpar filtros</button></div>}
+        {filtered.length===0&&(
+          <EmptyState
+            emoji="🔍"
+            title="Nenhuma camiseta encontrada"
+            sub="Tente outros filtros ou limpe a busca para ver todos os itens."
+            action="Limpar filtros"
+            onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null}); setSearch(""); }}
+          />
+        )}
       </>}
       {authModal}
       {toastEl}
@@ -970,19 +1048,47 @@ export default function App() {
   // ── SELLERS ──
   if(page==="sellers") {
     const activeSellers = sellers.filter(sv=>!sv.blocked&&shirts.some(sh=>sh.seller_id===sv.id));
+    const filteredSellers = activeSellers.filter(sv=>{
+      if(!sellerSearch.trim()) return true;
+      const q = sellerSearch.toLowerCase();
+      return (sv.name||"").toLowerCase().includes(q)||(sv.location||"").toLowerCase().includes(q);
+    });
     return (
       <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
         <NavBar />
         <SectionHead icon="👥" sub="comunidade" title="Vendedores" />
+        {/* Campo de busca de vendedores */}
+        <div style={{ position:"relative",marginBottom:16 }}>
+          <span style={{ position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.gray400,fontSize:16 }}>🔍</span>
+          <input
+            value={sellerSearch}
+            onChange={e=>setSellerSearch(e.target.value)}
+            placeholder="Buscar vendedor por nome ou cidade..."
+            style={{ width:"100%",padding:"10px 38px 10px 40px",border:`1px solid ${C.gray200}`,borderRadius:12,fontSize:14,boxSizing:"border-box",outline:"none" }}
+          />
+          {sellerSearch&&(
+            <button onClick={()=>setSellerSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:18,lineHeight:1,padding:0 }}>×</button>
+          )}
+        </div>
         {sellersLoading ? <Spinner /> : activeSellers.length===0 ? (
-          <div style={{ textAlign:"center",padding:"4rem 1rem",color:C.gray400 }}>
-            <div style={{ fontSize:44,marginBottom:12 }}>👥</div>
-            <p style={{ fontWeight:500 }}>Nenhum vendedor com anúncios ainda.</p>
-            <button onClick={()=>setPage("addProduct")} style={{ marginTop:14,padding:"8px 20px",background:C.green,color:C.white,border:"none",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600 }}>Seja o primeiro a anunciar!</button>
-          </div>
+          <EmptyState
+            emoji="👥"
+            title="Nenhum vendedor ainda"
+            sub="Seja o primeiro a publicar um anúncio e apareça aqui!"
+            action="+ Anunciar camiseta"
+            onAction={()=>requireAuth(()=>setPage("addProduct"))}
+          />
+        ) : filteredSellers.length===0 ? (
+          <EmptyState
+            emoji="🔍"
+            title="Nenhum vendedor encontrado"
+            sub={`Não encontramos ninguém com "${sellerSearch}". Tente outro nome ou cidade.`}
+            action="Limpar busca"
+            onAction={()=>setSellerSearch("")}
+          />
         ) : (
           <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-            {activeSellers.map(sv=>{
+            {filteredSellers.map(sv=>{
               const count = shirts.filter(sh=>sh.seller_id===sv.id).length;
               const avgRating = sv.rating ? Number(sv.rating).toFixed(1) : null;
               return (
@@ -1015,7 +1121,13 @@ export default function App() {
       <NavBar />
       <SectionHead icon="♥" sub="minha lista" title="Lista de desejos" />
       {wishlist.length===0
-        ?<div style={{ textAlign:"center",padding:"4rem 1rem",color:C.gray400 }}><div style={{ fontSize:44,marginBottom:12 }}>♡</div><p>Sua lista está vazia.</p><button onClick={()=>setPage("catalog")} style={{ marginTop:14,padding:"8px 20px",background:C.green,color:C.white,border:"none",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:600 }}>Explorar catálogo →</button></div>
+        ?<EmptyState
+            emoji="♡"
+            title="Sua lista está vazia"
+            sub="Salve as camisetas que você curtir clicando no coração e encontre-as aqui depois."
+            action="Explorar catálogo →"
+            onAction={()=>setPage("catalog")}
+          />
         :<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{shirts.filter(s=>wishlist.includes(s.id)).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>
       }
       {authModal}
