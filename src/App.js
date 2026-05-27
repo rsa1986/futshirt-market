@@ -388,6 +388,9 @@ export default function App() {
   const [bannerSaving,setBannerSaving] = useState(null);
   const [sellerSearch,setSellerSearch] = useState("");
 
+  // ref para o botão Voltar do navegador (acesso sem deps no event listener)
+  const navRef = useRef({ page:"home", sellerSlug:null, selectedId:null });
+
   // ── load session ──
   useEffect(()=>{
     supabase.auth.getSession().then(({ data:{ session } })=>{
@@ -433,6 +436,28 @@ export default function App() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[user,loading]);
+
+  // ── mantém navRef atualizado (para o handler de popstate) ──
+  useEffect(()=>{
+    navRef.current = { page, sellerSlug, selectedId };
+  },[page, sellerSlug, selectedId]);
+
+  // ── botão Voltar do navegador/celular ──
+  useEffect(()=>{
+    // Garante que sempre há um entry no histórico para interceptar
+    window.history.pushState(null, "");
+    const handlePop = () => {
+      // Re-push para continuar interceptando futuros "voltar"
+      window.history.pushState(null, "");
+      const { page:p, sellerSlug:sl, selectedId:si } = navRef.current;
+      if(si)       { setSelectedId(null); setSelectedShirt(null); }
+      else if(sl)  { setSellerSlug(null); setSellerProfile(null); }
+      else if(p !== "home") setPage("home");
+    };
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
   // ── inicializa form de perfil ao abrir a tela ──
   useEffect(()=>{
@@ -653,9 +678,13 @@ export default function App() {
   }
 
   async function openSeller(sellerId) {
+    // Mostra imediatamente os dados já carregados na lista de vendedores
+    const cached = sellers.find(s => s.id === sellerId) || null;
     setSellerSlug(sellerId);
+    setSellerProfile(cached); // evita tela em branco enquanto carrega
+    // Atualiza com dados frescos do Supabase em background
     const { data } = await supabase.from("profiles").select("*").eq("id",sellerId).single();
-    setSellerProfile(data);
+    if(data) setSellerProfile(data);
   }
 
   // apply filters
