@@ -325,6 +325,7 @@ export default function App() {
   const [loginData,setLoginData] = useState({ email:"",password:"" });
   const [showLoginPwd,setShowLoginPwd] = useState(false);
   const [showAuth,setShowAuth]         = useState(false);
+  const [adminTab,setAdminTab]         = useState("users");
 
   // ── load session ──
   useEffect(()=>{
@@ -349,13 +350,13 @@ export default function App() {
 
   // ── load sellers when tab is opened ──
   useEffect(()=>{
-    if(page==="sellers") loadSellers();
+    if(page==="sellers"||page==="admin") loadSellers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[page]);
 
   // ── redireciona ao home se sair enquanto em página restrita ──
   useEffect(()=>{
-    if(!user && !loading && ["addProduct","myProfile","wishlist"].includes(page)){
+    if(!user && !loading && ["addProduct","myProfile","wishlist","admin"].includes(page)){
       setPage("home");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -371,7 +372,7 @@ export default function App() {
 
   async function loadShirts() {
     setShirtsLoading(true);
-    const { data } = await supabase.from("shirts").select("*, profiles(name, rating)").order("created_at",{ ascending:false });
+    const { data } = await supabase.from("shirts").select("*, profiles(name, rating, blocked)").order("created_at",{ ascending:false });
     setShirts(data||[]);
     setShirtsLoading(false);
   }
@@ -479,6 +480,16 @@ export default function App() {
     else addToast("Erro ao excluir anúncio","error");
   }
 
+  async function handleToggleBlock(seller) {
+    const newBlocked = !seller.blocked;
+    const { error } = await supabase.from("profiles").update({ blocked:newBlocked }).eq("id",seller.id);
+    if(!error){
+      setSellers(ss=>ss.map(s=>s.id===seller.id?{...s,blocked:newBlocked}:s));
+      await loadShirts();
+      addToast(newBlocked?`${seller.name} bloqueado`:`${seller.name} desbloqueado`, newBlocked?"error":"success");
+    } else addToast("Erro ao atualizar usuário","error");
+  }
+
   async function handleSaveProfile() {
     setProfileSaving(true);
     const { error } = await supabase.from("profiles")
@@ -549,6 +560,7 @@ export default function App() {
   // apply filters
   function applyFilters(list) {
     return list.filter(s=>{
+      if(s.profiles?.blocked) return false;
       if(search && !`${s.team} ${s.edition} ${s.country} ${s.year}`.toLowerCase().includes(search.toLowerCase())) return false;
       if(filters.type      && s.type      !== filters.type)      return false;
       if(filters.region    && s.region    !== filters.region)    return false;
@@ -832,6 +844,7 @@ export default function App() {
           {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
             <button key={v} onClick={()=>setPage(v)} style={{ background:page===v?C.greenLight:"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600 }}>{l}</button>
           ))}
+          {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ background:page==="admin"?"#fef3c7":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="admin"?600:400,color:page==="admin"?C.amber:C.gray600 }}>⚙️ Admin</button>}
         </div>}
         {/* Ações à direita */}
         <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
@@ -854,6 +867,7 @@ export default function App() {
           <button key={v} onClick={()=>setPage(v)} style={{ flex:1,background:page===v?C.greenLight:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600,whiteSpace:"nowrap" }}>{l}</button>
         ))}
         {user ? <>
+          {profile?.role==="admin"&&<button onClick={()=>setPage("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
           <button onClick={()=>setPage("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
           <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
         </> : <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>}
@@ -910,7 +924,7 @@ export default function App() {
 
   // ── SELLERS ──
   if(page==="sellers") {
-    const activeSellers = sellers.filter(sv=>shirts.some(sh=>sh.seller_id===sv.id));
+    const activeSellers = sellers.filter(sv=>!sv.blocked&&shirts.some(sh=>sh.seller_id===sv.id));
     return (
       <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
         <NavBar />
@@ -1015,6 +1029,82 @@ export default function App() {
       {toastEl}
     </div>
   );
+
+  // ── ADMIN ──
+  if(page==="admin"&&profile?.role==="admin") {
+    const allShirts = shirts; // sem filtro de bloqueio para o admin ver tudo
+    return (
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+        <NavBar />
+        <SectionHead icon="⚙️" sub="administração" title="Painel de Controle" />
+
+        {/* Tabs */}
+        <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8 }}>
+          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setAdminTab(v)} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
+          ))}
+        </div>
+
+        {/* Tab: Usuários */}
+        {adminTab==="users"&&(
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {sellers.length===0&&<p style={{ color:C.gray400,fontSize:14 }}>Carregando usuários...</p>}
+            {sellers.map(sv=>{
+              const count = allShirts.filter(sh=>sh.seller_id===sv.id).length;
+              const isMe = sv.id===user.id;
+              return (
+                <div key={sv.id} style={{ background:sv.blocked?C.redLight:C.white,border:`1px solid ${sv.blocked?C.red:C.gray200}`,borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:12 }}>
+                  <Avatar name={sv.name} size={42} src={sv.avatar_url} />
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+                      <p style={{ margin:0,fontWeight:600,fontSize:14,color:C.gray900 }}>{sv.name||"—"}</p>
+                      {sv.role==="admin"&&<span style={{ fontSize:10,background:"#fef3c7",color:C.amber,borderRadius:4,padding:"1px 6px",fontWeight:600 }}>ADMIN</span>}
+                      {sv.blocked&&<span style={{ fontSize:10,background:C.redLight,color:C.red,borderRadius:4,padding:"1px 6px",fontWeight:600 }}>BLOQUEADO</span>}
+                    </div>
+                    <p style={{ margin:"2px 0 0",fontSize:12,color:C.gray400 }}>{count} anúncio{count!==1?"s":""}{sv.location?` · ${sv.location}`:""}</p>
+                  </div>
+                  {!isMe&&(
+                    <button onClick={()=>handleToggleBlock(sv)} style={{ flexShrink:0,padding:"6px 13px",borderRadius:8,border:`1px solid ${sv.blocked?C.green:C.red}`,background:"none",color:sv.blocked?C.green:C.red,fontSize:12,fontWeight:600,cursor:"pointer" }}>
+                      {sv.blocked?"✅ Desbloquear":"🚫 Bloquear"}
+                    </button>
+                  )}
+                  {isMe&&<span style={{ fontSize:11,color:C.gray400,flexShrink:0 }}>você</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tab: Anúncios */}
+        {adminTab==="shirts"&&(
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {allShirts.length===0&&<p style={{ color:C.gray400,fontSize:14 }}>Nenhum anúncio cadastrado.</p>}
+            {allShirts.map(sh=>{
+              const sellerBlocked = sellers.find(sv=>sv.id===sh.seller_id)?.blocked;
+              return (
+                <div key={sh.id} style={{ background:sellerBlocked?C.redLight:C.white,border:`1px solid ${sellerBlocked?C.red:C.gray200}`,borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:12 }}>
+                  <div style={{ width:48,height:48,borderRadius:8,overflow:"hidden",background:C.gray50,flexShrink:0 }}>
+                    <ShirtPhoto value={(sh.photos||[])[0]||"⚽"} size={48} />
+                  </div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ margin:"0 0 2px",fontWeight:600,fontSize:14,color:C.gray900 }}>{sh.team}</p>
+                    <p style={{ margin:0,fontSize:12,color:C.gray400 }}>{sh.edition} · {sh.year} · R$ {Number(sh.price).toLocaleString("pt-BR")}</p>
+                    <p style={{ margin:"2px 0 0",fontSize:11,color:sellerBlocked?C.red:C.gray400 }}>
+                      {sh.profiles?.name||"—"}{sellerBlocked?" · vendedor bloqueado":""}
+                    </p>
+                  </div>
+                  <button onClick={()=>handleDeleteShirt(sh.id)} style={{ flexShrink:0,padding:"6px 10px",borderRadius:8,border:`1px solid ${C.red}`,background:C.redLight,color:C.red,fontSize:12,fontWeight:600,cursor:"pointer" }}>🗑️ Excluir</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {authModal}
+        {toastEl}
+      </div>
+    );
+  }
 
   return null;
 }
