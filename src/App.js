@@ -898,7 +898,6 @@ export default function App() {
           </> : <>
             {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
             {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>Cadastrar</button>}
-            {isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"5px 10px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:12,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
           </>}
         </div>
       </div>
