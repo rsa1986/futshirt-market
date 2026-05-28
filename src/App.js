@@ -1260,6 +1260,8 @@ export default function App() {
   function deepNavigate(link) {
     if (!link) { navigate("catalog"); return; }
     if (isUrl(link)) { window.open(link, "_blank"); return; }
+    if (link.startsWith("item-"))   { openShirt(link.replace("item-","")); return; }
+    if (link.startsWith("seller-")) { openSeller(link.replace("seller-","")); return; }
     if (link.includes("?")) {
       const { page, params } = parseDeepLink(link);
       if (params.search !== undefined) setSearch(params.search);
