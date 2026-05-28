@@ -183,6 +183,12 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
       <div style={{ background: C.gray50, position: "relative" }}>
         <ShirtPhoto value={photo} size={140} />
 
+        {s.status === "vendido" && (
+          <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3 }}>
+            <span style={{ background:"#111",color:"#fff",fontSize:11,fontWeight:700,padding:"5px 14px",borderRadius:6,letterSpacing:1.5 }}>VENDIDO</span>
+          </div>
+        )}
+
         {(s.photos || []).length > 1 && (
           <span style={{ position: "absolute", bottom: 6, right: 8, fontSize: 10, color: C.gray400, background: C.white, borderRadius: 5, padding: "1px 5px", border: `1px solid ${C.gray200}` }}>
             +{s.photos.length - 1}
@@ -451,22 +457,30 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[user,loading]);
 
-  // ── mantém navRef atualizado (para o handler de popstate) ──
+  // ── hash routing: lê hash inicial e navega para a página correta ──
   useEffect(()=>{
-    navRef.current = { page, sellerSlug, selectedId };
-  },[page, sellerSlug, selectedId]);
+    const hash = window.location.hash.slice(1);
+    if(hash.startsWith("seller-"))      openSeller(hash.replace("seller-",""));
+    else if(hash.startsWith("item-"))   openShirt(hash.replace("item-",""));
+    else if(["catalog","sellers","wishlist"].includes(hash)) setPage(hash);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
-  // ── botão Voltar do navegador/celular ──
+  // ── botão Voltar do navegador: segue o hash ──
   useEffect(()=>{
-    // Garante que sempre há um entry no histórico para interceptar
-    window.history.pushState(null, "");
     const handlePop = () => {
-      // Re-push para continuar interceptando futuros "voltar"
-      window.history.pushState(null, "");
-      const { page:p, sellerSlug:sl, selectedId:si } = navRef.current;
-      if(si)       { setSelectedId(null); setSelectedShirt(null); }
-      else if(sl)  { setSellerSlug(null); setSellerProfile(null); }
-      else if(p !== "home") setPage("home");
+      const hash = window.location.hash.slice(1);
+      if(hash.startsWith("seller-")){
+        setSelectedId(null); setSelectedShirt(null);
+        openSeller(hash.replace("seller-",""));
+      } else if(hash.startsWith("item-")){
+        setSellerSlug(null); setSellerProfile(null);
+        openShirt(hash.replace("item-",""));
+      } else {
+        setSellerSlug(null); setSellerProfile(null);
+        setSelectedId(null); setSelectedShirt(null);
+        setPage(hash || "home");
+      }
     };
     window.addEventListener("popstate", handlePop);
     return () => window.removeEventListener("popstate", handlePop);
@@ -609,6 +623,15 @@ export default function App() {
     else addToast("Erro ao excluir anúncio","error");
   }
 
+  async function handleToggleShirtStatus(shirtId, currentStatus) {
+    const newStatus = currentStatus === "vendido" ? "disponivel" : "vendido";
+    const { error } = await supabase.from("shirts").update({ status: newStatus }).eq("id", shirtId);
+    if(!error) {
+      setShirts(ss => ss.map(s => s.id === shirtId ? { ...s, status: newStatus } : s));
+      addToast(newStatus === "vendido" ? "Marcado como vendido ✓" : "Reativado no catálogo ✓");
+    } else addToast("Erro ao atualizar status","error");
+  }
+
   async function handleToggleBlock(seller) {
     const newBlocked = !seller.blocked;
     const { error } = await supabase.from("profiles").update({ blocked:newBlocked }).eq("id",seller.id);
@@ -740,6 +763,7 @@ export default function App() {
   }
 
   async function openShirt(id) {
+    window.history.pushState(null, "", `#item-${id}`);
     setSelectedId(id);
     setPhotoIdx(0);
     const { data } = await supabase.from("shirts").select("*, profiles(*)").eq("id",id).single();
@@ -747,6 +771,7 @@ export default function App() {
   }
 
   async function openSeller(sellerId) {
+    window.history.pushState(null, "", `#seller-${sellerId}`);
     const cached = sellers.find(s => s.id === sellerId) || null;
     setSellerSlug(sellerId);
     setSellerProfile(cached);
@@ -761,6 +786,7 @@ export default function App() {
   function applyFilters(list) {
     return list.filter(s=>{
       if(s.profiles?.blocked) return false;
+      if(s.status === "vendido") return false;
       if(search && !`${s.team} ${s.edition} ${s.country} ${s.year}`.toLowerCase().includes(search.toLowerCase())) return false;
       if(filters.type      && s.type      !== filters.type)      return false;
       if(filters.region    && s.region    !== filters.region)    return false;
@@ -775,9 +801,12 @@ export default function App() {
     }).sort((a,b)=>sortBy==="preco_asc"?a.price-b.price:sortBy==="preco_desc"?b.price-a.price:sortBy==="avaliacao"?(b.rating||0)-(a.rating||0):0);
   }
 
-  const filtered = applyFilters(shirts);
-  const promos   = shirts.filter(s=>s.price_old);
-  const featured = shirts.filter(s=>s.featured&&!s.price_old);
+  const filtered  = applyFilters(shirts);
+  const available = shirts.filter(s=>s.status!=="vendido"&&!s.profiles?.blocked);
+  const promos    = available.filter(s=>s.price_old);
+  const featured  = available.filter(s=>s.featured&&!s.price_old);
+  const recent    = available.slice(0,6);
+  const topRated  = available.filter(s=>(s.rating||0)>=4).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,6);
 
   // ── TOAST LAYER (position:fixed, aparece sobre qualquer página) ──
   const toastEl = toasts.length>0&&(
@@ -838,6 +867,7 @@ export default function App() {
 
   // ── NAV ──
   function navigate(target) {
+    window.history.pushState(null, "", target === "home" ? "#" : `#${target}`);
     setPage(target);
     setSellerSlug(null);
     setSellerProfile(null);
@@ -1167,26 +1197,38 @@ export default function App() {
   if(page==="home") return (
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
       <NavBar />
-      <BannerCarousel onCta={()=>setPage("catalog")} banners={banners} />
-      {promos.length>0&&<div style={{ marginBottom:30 }}>
-        <SectionHead icon="🏷️" sub="ofertas especiais" title="Em promoção agora" action="Ver todas" onAction={()=>setPage("catalog")} />
+      <BannerCarousel onCta={()=>navigate("catalog")} banners={banners} />
+
+      {shirtsLoading&&<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:30 }}>{[...Array(4)].map((_,i)=><SkeletonCard key={i} />)}</div>}
+
+      {!shirtsLoading&&promos.length>0&&<div style={{ marginBottom:30 }}>
+        <SectionHead icon="🏷️" sub="ofertas especiais" title="Em promoção" action="Ver todas" onAction={()=>navigate("catalog")} />
         <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
-          {promos.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
+          {promos.slice(0,4).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
-      {featured.length>0&&<div style={{ marginBottom:30 }}>
-        <SectionHead icon="⭐" sub="destaques" title="Camisetas em destaque" action="Ver catálogo" onAction={()=>setPage("catalog")} />
+
+      {!shirtsLoading&&topRated.length>0&&<div style={{ marginBottom:30 }}>
+        <SectionHead icon="⭐" sub="melhores avaliadas" title="Mais bem avaliadas" action="Ver catálogo" onAction={()=>navigate("catalog")} />
         <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
-          {featured.slice(0,4).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
+          {topRated.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
-      {shirts.length===0&&!shirtsLoading&&(
+
+      {!shirtsLoading&&recent.length>0&&<div style={{ marginBottom:30 }}>
+        <SectionHead icon="🆕" sub="recém adicionadas" title="Novidades" action="Ver todas" onAction={()=>navigate("catalog")} />
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+          {recent.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
+        </div>
+      </div>}
+
+      {!shirtsLoading&&available.length===0&&(
         <EmptyState
           emoji="⚽"
           title="Seja o primeiro a anunciar!"
           sub="O mercado ainda está vazio. Cadastre sua camiseta e encontre compradores."
           action="+ Anunciar camiseta"
-          onAction={()=>requireAuth(()=>setPage("addProduct"))}
+          onAction={()=>requireAuth(()=>navigate("addProduct"))}
         />
       )}
       {authModal}
@@ -1420,6 +1462,9 @@ export default function App() {
                   </div>
                   <div style={{ display:"flex",flexDirection:"column",gap:6,flexShrink:0 }}>
                     <button onClick={()=>startEditShirt(sh)} style={{ padding:"6px 12px",background:C.white,border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:C.gray600 }}>✏️ Editar</button>
+                    <button onClick={()=>handleToggleShirtStatus(sh.id, sh.status)} style={{ padding:"6px 10px",background:sh.status==="vendido"?C.greenLight:C.amberLight,border:`1px solid ${sh.status==="vendido"?C.green:C.amber}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:sh.status==="vendido"?C.greenDark:C.amber }}>
+                      {sh.status==="vendido"?"↩ Reativar":"✓ Vendido"}
+                    </button>
                     <button onClick={()=>handleDeleteShirt(sh.id)} style={{ padding:"6px 10px",background:C.redLight,border:`1px solid ${C.red}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:C.red }}>🗑️</button>
                   </div>
                 </div>
