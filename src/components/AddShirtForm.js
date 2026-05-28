@@ -9,8 +9,12 @@ export default function AddShirtForm({
 }) {
   function validateStep1() {
     const errs = {};
-    if(!form.team.trim()) errs.team = "Obrigatório";
-    if(!form.price||parseFloat(form.price)<=0) errs.price = "Informe um preço válido";
+    if(!form.team.trim())                   errs.team      = "Obrigatório";
+    if(!form.price||parseFloat(form.price)<=0) errs.price  = "Informe um preço válido";
+    if(!form.condition)                     errs.condition = "Selecione a condição";
+    if(!form.size)                          errs.size      = "Selecione o tamanho";
+    if(!form.type)                          errs.type      = "Selecione a categoria";
+    if(!form.region)                        errs.region    = "Selecione a região";
     const yr = parseInt(form.year);
     if(form.year&&(yr<1900||yr>new Date().getFullYear()+1)) errs.year = "Ano inválido";
     if(form.price_old&&parseFloat(form.price_old)<=parseFloat(form.price||0)) errs.price_old = "Deve ser maior que o preço atual";
@@ -68,8 +72,22 @@ export default function AddShirtForm({
               {formErrors[k]&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors[k]}</p>}
             </div>
           ))}
-          {[["Categoria","type",[["times","Times"],["selecoes","Seleções"]]],["Região","region",[["nacional","Nacional"],["europa","Europa"],["america_sul","Am. Sul"],["america_norte","Am. Norte"],["africa","África"],["asia","Ásia"]]],["Condição","condition",[["Nova","Nova"],["Usada","Usada"]]],["Tamanho","size",[["PP","PP"],["P","P"],["M","M"],["G","G"],["GG","GG"]]],["Tipo","model",[["","Selecione..."],["Modelo Jogador","Modelo Jogador"],["Modelo Torcedor","Modelo Torcedor"],["Utilizado em Jogo","Utilizado em Jogo"]]]].map(([l,k,opts])=>(
-            <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>{l}</label><select value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>{opts.map(([v,lbl])=><option key={v} value={v}>{lbl}</option>)}</select></div>
+          {[
+            ["Categoria *","type",[["","Selecione..."],["times","Times"],["selecoes","Seleções"]]],
+            ["Região *","region",[["","Selecione..."],["nacional","Nacional (Brasil)"],["europa","Europa"],["america_sul","América do Sul"],["america_norte","América do Norte"],["africa","África"],["asia","Ásia"]]],
+            ["Condição *","condition",[["","Selecione..."],["Nova","Nova"],["Usada","Usada"]]],
+            ["Tamanho *","size",[["","Selecione..."],["PP","PP"],["P","P"],["M","M"],["G","G"],["GG","GG"]]],
+            ["Tipo (modelo)","model",[["","Selecione..."],["Modelo Jogador","Modelo Jogador"],["Modelo Torcedor","Modelo Torcedor"],["Utilizado em Jogo","Utilizado em Jogo"]]],
+          ].map(([l,k,opts])=>(
+            <div key={k}>
+              <label style={{ fontSize:12,color:formErrors[k]?C.red:C.gray600,display:"block",marginBottom:4 }}>{l}</label>
+              <select value={form[k]}
+                onChange={e=>{ setForm(f=>({...f,[k]:e.target.value})); if(formErrors[k]) setFormErrors(fe=>({...fe,[k]:null})); }}
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors[k]?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",color:form[k]?C.gray900:"#9ca3af" }}>
+                {opts.map(([v,lbl])=><option key={v} value={v}>{lbl}</option>)}
+              </select>
+              {formErrors[k]&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors[k]}</p>}
+            </div>
           ))}
           <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Descrição</label><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }} /></div>
           {/* Campos do colecionador */}

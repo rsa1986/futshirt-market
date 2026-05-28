@@ -253,56 +253,69 @@ function ActiveTag({ label,onRemove }) {
 }
 
 export function FilterBar({ filters,setFilters,search,setSearch }) {
+  const [open, setOpen] = useState(false);
   const { sport,type,region,condition,model,size,price,state } = filters;
   const set = (key,val) => setFilters(f=>({ ...f,[key]:f[key]===val?null:val }));
   const regionList = type ? REGIONS[type] : [];
   const activeCount = [sport,type,region,condition,model,size,price&&price!=="all"?price:null,state].filter(Boolean).length;
   return (
     <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,padding:"14px 16px",marginBottom:18 }}>
-      <div style={{ position:"relative",marginBottom:14 }}>
-        <span style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:C.gray400,fontSize:16 }}>🔍</span>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar time, seleção, edição, país..." style={{ width:"100%",padding:"10px 14px 10px 40px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",outline:"none" }} />
-        {search&&<button onClick={()=>setSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:16 }}>×</button>}
-      </div>
-      <div style={{ marginBottom:10 }}>
-        <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Esporte</p>
-        <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{SPORTS.map(s=><Pill key={s.id} active={sport===s.id} onClick={()=>set("sport",s.id)} disabled={s.soon} soon={s.soon}>{s.label}</Pill>)}</div>
-      </div>
-      {sport&&<div style={{ marginBottom:10 }}>
-        <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tipo</p>
-        <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{TYPES.map(t=><Pill key={t.id} active={type===t.id} onClick={()=>{ set("type",t.id); setFilters(f=>({...f,region:null})); }}>{t.label}</Pill>)}</div>
-      </div>}
-      {sport&&type&&<div style={{ marginBottom:10 }}>
-        <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Região</p>
-        <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{regionList.map(r=><Pill key={r.id} active={region===r.id} onClick={()=>set("region",r.id)}>{r.label}</Pill>)}</div>
-      </div>}
-      <div style={{ height:1,background:C.gray100,margin:"10px 0" }} />
-      <div style={{ display:"flex",flexWrap:"wrap",gap:14 }}>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tipo</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{SHIRT_MODELS.map(m=><Pill key={m} active={model===m} onClick={()=>set("model",m)}>{m}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Condição</p><div style={{ display:"flex",gap:6 }}>{CONDITIONS.map(c=><Pill key={c} active={condition===c} onClick={()=>set("condition",c)}>{c}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tamanho</p><div style={{ display:"flex",gap:6 }}>{SIZES.map(s=><Pill key={s} active={size===s} onClick={()=>set("size",s)}>{s}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Preço</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{PRICES.map(p=><Pill key={p.id} active={price===p.id&&p.id!=="all"} onClick={()=>set("price",p.id==="all"?null:p.id)}>{p.label}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Estado do vendedor</p>
-          <select value={state||""} onChange={e=>setFilters(f=>({...f,state:e.target.value||null}))} style={{ padding:"6px 12px",border:`1px solid ${state?C.green:C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer",color:state?C.greenDark:C.gray600,fontWeight:state?600:400 }}>
-            <option value="">Todos os estados</option>
-            {BR_STATES.map(s=><option key={s.sigla} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
-          </select>
+      {/* Busca + botão filtros */}
+      <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+        <div style={{ position:"relative",flex:1 }}>
+          <span style={{ position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",color:C.gray400,fontSize:16 }}>🔍</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar time, seleção, edição, país..." style={{ width:"100%",padding:"10px 14px 10px 40px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",outline:"none" }} />
+          {search&&<button onClick={()=>setSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:16 }}>×</button>}
         </div>
+        <button onClick={()=>setOpen(v=>!v)}
+          style={{ flexShrink:0,padding:"9px 14px",borderRadius:10,border:`1.5px solid ${open||activeCount>0?C.green:C.gray200}`,background:open||activeCount>0?C.greenLight:C.white,color:open||activeCount>0?C.greenDark:C.gray600,fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap" }}>
+          ⚙️ Filtros{activeCount>0&&<span style={{ background:C.green,color:C.white,borderRadius:99,fontSize:11,padding:"1px 7px",fontWeight:700 }}>{activeCount}</span>}
+        </button>
       </div>
-      {activeCount>0&&<div style={{ display:"flex",alignItems:"center",gap:8,marginTop:12,paddingTop:12,borderTop:`1px solid ${C.gray100}` }}>
-        <span style={{ fontSize:12,color:C.gray400 }}>{activeCount} filtro{activeCount>1?"s":""} ativo{activeCount>1?"s":""}:</span>
-        <div style={{ display:"flex",gap:6,flexWrap:"wrap",flex:1 }}>
-          {sport&&<ActiveTag label={SPORTS.find(s=>s.id===sport)?.label} onRemove={()=>setFilters(f=>({...f,sport:null,type:null,region:null}))} />}
-          {type&&<ActiveTag label={TYPES.find(t=>t.id===type)?.label} onRemove={()=>setFilters(f=>({...f,type:null,region:null}))} />}
-          {region&&<ActiveTag label={regionList.find(r=>r.id===region)?.label} onRemove={()=>setFilters(f=>({...f,region:null}))} />}
-          {model&&<ActiveTag label={model} onRemove={()=>setFilters(f=>({...f,model:null}))} />}
-          {condition&&<ActiveTag label={condition} onRemove={()=>setFilters(f=>({...f,condition:null}))} />}
-          {size&&<ActiveTag label={`Tam. ${size}`} onRemove={()=>setFilters(f=>({...f,size:null}))} />}
-          {price&&price!=="all"&&<ActiveTag label={PRICES.find(p=>p.id===price)?.label} onRemove={()=>setFilters(f=>({...f,price:null}))} />}
-          {state&&<ActiveTag label={`📍 ${BR_STATES.find(s=>s.sigla===state)?.nome||state}`} onRemove={()=>setFilters(f=>({...f,state:null}))} />}
+
+      {/* Painel de filtros colapsável */}
+      {open&&<>
+        <div style={{ height:1,background:C.gray100,margin:"14px 0 12px" }} />
+        <div style={{ marginBottom:10 }}>
+          <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Esporte</p>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{SPORTS.map(s=><Pill key={s.id} active={sport===s.id} onClick={()=>set("sport",s.id)} disabled={s.soon} soon={s.soon}>{s.label}</Pill>)}</div>
         </div>
-        <button onClick={()=>setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null})} style={{ fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:500,whiteSpace:"nowrap" }}>Limpar tudo</button>
-      </div>}
+        {sport&&<div style={{ marginBottom:10 }}>
+          <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tipo</p>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{TYPES.map(t=><Pill key={t.id} active={type===t.id} onClick={()=>{ set("type",t.id); setFilters(f=>({...f,region:null})); }}>{t.label}</Pill>)}</div>
+        </div>}
+        {sport&&type&&<div style={{ marginBottom:10 }}>
+          <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Região</p>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{regionList.map(r=><Pill key={r.id} active={region===r.id} onClick={()=>set("region",r.id)}>{r.label}</Pill>)}</div>
+        </div>}
+        <div style={{ height:1,background:C.gray100,margin:"10px 0" }} />
+        <div style={{ display:"flex",flexWrap:"wrap",gap:14 }}>
+          <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Modelo</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{SHIRT_MODELS.map(m=><Pill key={m} active={model===m} onClick={()=>set("model",m)}>{m}</Pill>)}</div></div>
+          <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Condição</p><div style={{ display:"flex",gap:6 }}>{CONDITIONS.map(c=><Pill key={c} active={condition===c} onClick={()=>set("condition",c)}>{c}</Pill>)}</div></div>
+          <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tamanho</p><div style={{ display:"flex",gap:6 }}>{SIZES.map(s=><Pill key={s} active={size===s} onClick={()=>set("size",s)}>{s}</Pill>)}</div></div>
+          <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Preço</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{PRICES.map(p=><Pill key={p.id} active={price===p.id&&p.id!=="all"} onClick={()=>set("price",p.id==="all"?null:p.id)}>{p.label}</Pill>)}</div></div>
+          <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Estado do vendedor</p>
+            <select value={state||""} onChange={e=>setFilters(f=>({...f,state:e.target.value||null}))} style={{ padding:"6px 12px",border:`1px solid ${state?C.green:C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer",color:state?C.greenDark:C.gray600,fontWeight:state?600:400 }}>
+              <option value="">Todos os estados</option>
+              {BR_STATES.map(s=><option key={s.sigla} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
+            </select>
+          </div>
+        </div>
+        {activeCount>0&&<div style={{ display:"flex",alignItems:"center",gap:8,marginTop:12,paddingTop:12,borderTop:`1px solid ${C.gray100}` }}>
+          <span style={{ fontSize:12,color:C.gray400 }}>{activeCount} filtro{activeCount>1?"s":""} ativo{activeCount>1?"s":""}:</span>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap",flex:1 }}>
+            {sport&&<ActiveTag label={SPORTS.find(s=>s.id===sport)?.label} onRemove={()=>setFilters(f=>({...f,sport:null,type:null,region:null}))} />}
+            {type&&<ActiveTag label={TYPES.find(t=>t.id===type)?.label} onRemove={()=>setFilters(f=>({...f,type:null,region:null}))} />}
+            {region&&<ActiveTag label={regionList.find(r=>r.id===region)?.label} onRemove={()=>setFilters(f=>({...f,region:null}))} />}
+            {model&&<ActiveTag label={model} onRemove={()=>setFilters(f=>({...f,model:null}))} />}
+            {condition&&<ActiveTag label={condition} onRemove={()=>setFilters(f=>({...f,condition:null}))} />}
+            {size&&<ActiveTag label={`Tam. ${size}`} onRemove={()=>setFilters(f=>({...f,size:null}))} />}
+            {price&&price!=="all"&&<ActiveTag label={PRICES.find(p=>p.id===price)?.label} onRemove={()=>setFilters(f=>({...f,price:null}))} />}
+            {state&&<ActiveTag label={`📍 ${BR_STATES.find(s=>s.sigla===state)?.nome||state}`} onRemove={()=>setFilters(f=>({...f,state:null}))} />}
+          </div>
+          <button onClick={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); }} style={{ fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:500,whiteSpace:"nowrap" }}>Limpar tudo</button>
+        </div>}
+      </>}
     </div>
   );
 }

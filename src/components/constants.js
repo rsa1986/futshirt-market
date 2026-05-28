@@ -62,8 +62,8 @@ export const BANNER_THEMES = [
 export const PROFANITY = ["porra","merda","caralho","fdp","foda","foder","viado","buceta","cuzão","puta","vagabunda","arrombado","babaca","imbecil","desgraça","otário","corno","piranha","safado","safada","prostituta","idiota","retardado","burro","lixo","escória","raça","vsf","vtnc","tnc","krl","pqp","qrl"];
 
 export const emptyForm = {
-  team:"",country:"",year:"",edition:"",condition:"Nova",price:"",price_old:"",size:"M",model:"",
-  type:"times",region:"nacional",description:"",photos:[],status:"disponivel",
+  team:"",country:"",year:"",edition:"",condition:"",price:"",price_old:"",size:"",model:"",
+  type:"",region:"",description:"",photos:[],status:"disponivel",
   acquisition_price:"",has_name:false,has_number:false,player_name:"",shirt_color:"",collection_note:""
 };
 
