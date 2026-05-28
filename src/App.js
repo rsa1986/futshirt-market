@@ -610,6 +610,7 @@ export default function App() {
   const [banners,setBanners]           = useState(BANNERS_DEFAULT);
   const [adminBannerEdit,setAdminBannerEdit] = useState({});
   const [bannerSaving,setBannerSaving] = useState(null);
+  const [bannerErrors,setBannerErrors] = useState({});
   const [sellerSearch,setSellerSearch] = useState("");
   const [myProfileTab, setMyProfileTab]   = useState("dados");
   const [sellerReviews, setSellerReviews] = useState([]);
@@ -733,13 +734,31 @@ export default function App() {
 
   async function handleSaveBanner(id) {
     setBannerSaving(id);
+    setBannerErrors(prev => ({...prev, [id]: null}));
     const edit = adminBannerEdit[id];
-    if(!edit){ setBannerSaving(null); return; }
-    const { error } = await supabase.from("banners").update(edit).eq("id",id);
-    if(!error){
-      setBanners(bs=>bs.map(b=>b.id===id?{...b,...edit}:b));
+    if (!edit || !Object.keys(edit).length) {
+      addToast("Nenhuma alteração detectada.","error");
+      setBannerSaving(null);
+      return;
+    }
+    const { error } = await supabase.from("banners").update(edit).eq("id", id);
+    if (!error) {
+      setBanners(bs => bs.map(b => b.id===id ? {...b,...edit} : b));
       addToast("Banner atualizado!");
-    } else addToast("Erro ao salvar banner","error");
+    } else {
+      const msg = error.message || String(error);
+      // Identifica qual coluna causou o erro
+      const colMatch = msg.match(/column\s+"?(\w+)"?/i);
+      const badCol = colMatch?.[1] || null;
+      const missingCols = ["visible","link"].filter(c => msg.toLowerCase().includes(c));
+      const needsMigration = msg.includes("does not exist") && missingCols.length > 0;
+      setBannerErrors(prev => ({...prev, [id]: {
+        message: msg,
+        badCol,
+        missingCols,
+        needsMigration,
+      }}));
+    }
     setBannerSaving(null);
   }
 
@@ -2086,7 +2105,9 @@ export default function App() {
           <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
             {banners.map(b=>{
               const edit = adminBannerEdit[b.id]||{};
-              const setField = (k,v) => setAdminBannerEdit(prev=>({...prev,[b.id]:{...prev[b.id],[k]:v}}));
+              const setField = (k,v) => { setAdminBannerEdit(prev=>({...prev,[b.id]:{...prev[b.id],[k]:v}})); setBannerErrors(prev=>({...prev,[b.id]:null})); };
+              const bErr = bannerErrors[b.id]||null;
+              const hasFieldErr = (col) => bErr && (bErr.badCol===col || bErr.missingCols?.includes(col));
               const currentTheme = BANNER_THEMES.find(t=>t.grad===edit.grad);
               return (
                 <div key={b.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,overflow:"hidden" }}>
@@ -2228,8 +2249,8 @@ export default function App() {
                       const isCatalog = dlPage==="catalog";
                       const btnActive = (val) => dlPage===val && !isUrl(curLink);
                       return (
-                        <div>
-                          <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:6 }}>Destino do botão "{edit.cta||b.cta}"</label>
+                        <div style={{ padding: hasFieldErr("link")?"10px":0, borderRadius: hasFieldErr("link")?9:0, border: hasFieldErr("link")?"2px solid #ef4444":"none", background: hasFieldErr("link")?"#fef2f2":"transparent" }}>
+                          <label style={{ fontSize:11,color:hasFieldErr("link")?"#b91c1c":C.gray400,display:"block",marginBottom:6 }}>Destino do botão "{edit.cta||b.cta}"{hasFieldErr("link")&&<span style={{ marginLeft:6,fontSize:10,fontWeight:700,color:"#ef4444" }}>⚠ coluna não existe no banco</span>}</label>
                           <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:8 }}>
                             {DEST_BTNS.map(([val,label])=>(
                               <button key={val} onClick={()=>setDest(val)}
@@ -2310,19 +2331,39 @@ export default function App() {
                     {/* Visibilidade na home */}
                     {(()=>{
                       const isVisible = edit.visible!==undefined ? edit.visible : b.visible!==false;
+                      const vErr = hasFieldErr("visible");
                       return (
-                        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"12px 14px",background:isVisible?"#f0fdf4":"#fef2f2",borderRadius:10,border:`1px solid ${isVisible?"#d1fae5":"#fecaca"}` }}>
-                          <div>
-                            <p style={{ margin:0,fontSize:12,fontWeight:700,color:isVisible?"#166534":"#991b1b" }}>{isVisible?"Visível na home":"Oculto na home"}</p>
-                            <p style={{ margin:0,fontSize:11,color:isVisible?"#4ade80":"#f87171",marginTop:1 }}>{isVisible?"Este banner aparece para todos os visitantes.":"Este banner está desativado e não aparece na home."}</p>
+                        <div style={{ outline: vErr?"2px solid #ef4444":"none", outlineOffset:2, borderRadius:10 }}>
+                          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"12px 14px",background:vErr?"#fef2f2":isVisible?"#f0fdf4":"#fef2f2",borderRadius:10,border:`1px solid ${vErr?"#ef4444":isVisible?"#d1fae5":"#fecaca"}` }}>
+                            <div>
+                              <p style={{ margin:0,fontSize:12,fontWeight:700,color:vErr?"#ef4444":isVisible?"#166534":"#991b1b" }}>
+                                {vErr?"⚠ Visibilidade":isVisible?"Visível na home":"Oculto na home"}
+                              </p>
+                              <p style={{ margin:0,fontSize:11,color:vErr?"#b91c1c":isVisible?"#4ade80":"#f87171",marginTop:1 }}>
+                                {vErr?"Coluna \"visible\" não existe no banco — execute a migração SQL.":isVisible?"Este banner aparece para todos os visitantes.":"Este banner está desativado e não aparece na home."}
+                              </p>
+                            </div>
+                            <button onClick={()=>setField("visible",!isVisible)}
+                              style={{ width:46,height:26,borderRadius:99,border:"none",cursor:"pointer",background:isVisible?"#16a34a":"#d1d5db",position:"relative",transition:"background .25s",flexShrink:0,padding:0 }}>
+                              <div style={{ position:"absolute",top:3,left:isVisible?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .25s",boxShadow:"0 1px 3px rgba(0,0,0,.3)" }} />
+                            </button>
                           </div>
-                          <button onClick={()=>setField("visible",!isVisible)}
-                            style={{ width:46,height:26,borderRadius:99,border:"none",cursor:"pointer",background:isVisible?"#16a34a":"#d1d5db",position:"relative",transition:"background .25s",flexShrink:0,padding:0 }}>
-                            <div style={{ position:"absolute",top:3,left:isVisible?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .25s",boxShadow:"0 1px 3px rgba(0,0,0,.3)" }} />
-                          </button>
                         </div>
                       );
                     })()}
+                    {/* Caixa de erro detalhada */}
+                    {bErr&&(
+                      <div style={{ padding:"12px 14px",background:"#fef2f2",borderRadius:10,border:"2px solid #ef4444" }}>
+                        <p style={{ margin:"0 0 6px",fontSize:12,fontWeight:700,color:"#991b1b" }}>❌ Erro ao salvar o banner</p>
+                        <p style={{ margin:"0 0 8px",fontSize:11,color:"#b91c1c",fontFamily:"monospace",lineHeight:1.6,wordBreak:"break-all",background:"#fff",padding:"6px 9px",borderRadius:6,border:"1px solid #fecaca" }}>{bErr.message}</p>
+                        {bErr.needsMigration&&(
+                          <>
+                            <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:600,color:"#991b1b" }}>Solução: execute este SQL no Supabase → SQL Editor:</p>
+                            <pre style={{ margin:0,padding:"8px 10px",background:"#1e1e2e",color:"#a6e3a1",borderRadius:7,fontSize:11,overflowX:"auto",lineHeight:1.7 }}>{`ALTER TABLE banners ADD COLUMN IF NOT EXISTS visible boolean DEFAULT true;\nALTER TABLE banners ADD COLUMN IF NOT EXISTS link text DEFAULT 'catalog';`}</pre>
+                          </>
+                        )}
+                      </div>
+                    )}
                     <button onClick={()=>handleSaveBanner(b.id)} disabled={bannerSaving===b.id} style={{ padding:"9px 0",border:"none",borderRadius:10,background:C.green,color:C.white,fontWeight:600,fontSize:13,cursor:"pointer",opacity:bannerSaving===b.id?.7:1 }}>
                       {bannerSaving===b.id?"Salvando...":"💾 Salvar banner"}
                     </button>
