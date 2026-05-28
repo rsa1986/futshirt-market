@@ -59,7 +59,7 @@ function hasProfanity(text) {
   return PROFANITY.some(w => lower.includes(w.normalize("NFD").replace(/[̀-ͯ]/g,"")));
 }
 const BANNERS_DEFAULT = [
-  { id:1,label:"LANÇAMENTO",title:"Camisetas Lendárias",sub:"Peças raras dos anos 80 e 90 com procedência garantida",cta:"Explorar coleção",grad:"linear-gradient(120deg,#14532d 0%,#166534 60%,#15803d 100%)",accent:"#4ade80",img:"👑" },
+  { id:1,label:"VERDÃO",title:"S. E. Palmeiras",sub:"Camiseta oficial 2024 — edição comemorativa 110 anos do Verdão",cta:"Ver anúncios",grad:"linear-gradient(120deg,#052e16 0%,#14532d 55%,#166534 100%)",accent:"#4ade80",img:"https://images.unsplash.com/photo-1772450235863-996680ddb732?fm=jpg&q=80&w=900&auto=format&fit=crop" },
   { id:2,label:"PROMOÇÃO",title:"Até 40% OFF",sub:"Colecionadores verificados com descontos exclusivos esta semana",cta:"Ver ofertas",grad:"linear-gradient(120deg,#1e3a5f 0%,#1d4ed8 60%,#2563eb 100%)",accent:"#93c5fd",img:"🏷️" },
   { id:3,label:"DESTAQUE",title:"Copa do Mundo 2002",sub:"Reviva a glória do pentacampeonato com réplicas originais",cta:"Ver camisetas",grad:"linear-gradient(120deg,#78350f 0%,#b45309 60%,#d97706 100%)",accent:"#fcd34d",img:"🏆" },
 ];
@@ -226,19 +226,32 @@ function BannerCarousel({ onCta, banners }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{ timer.current=setInterval(()=>go(idx+1),4000); return()=>clearInterval(timer.current); },[idx]);
   const b = items[idx];
+  const hasPhoto = isUrl(b.img);
   return (
-    <div style={{ borderRadius:18,overflow:"hidden",marginBottom:28,position:"relative",background:b.grad,minHeight:180 }}>
-      <div style={{ padding:"2rem 2rem 1.75rem",position:"relative",zIndex:1 }}>
+    <div style={{ borderRadius:18,overflow:"hidden",marginBottom:28,position:"relative",background:b.grad,minHeight:hasPhoto?240:180 }}>
+      {/* Foto de fundo (lado direito) */}
+      {hasPhoto && (
+        <div style={{
+          position:"absolute",right:0,top:0,bottom:0,width:"55%",
+          backgroundImage:`url(${b.img})`,
+          backgroundSize:"cover",backgroundPosition:"center top",
+          WebkitMaskImage:"linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 35%,rgba(0,0,0,1) 100%)",
+          maskImage:"linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 35%,rgba(0,0,0,1) 100%)",
+        }} />
+      )}
+      <div style={{ padding:"2rem 2rem 1.75rem",position:"relative",zIndex:1,maxWidth:hasPhoto?"55%":"100%" }}>
         <span style={{ display:"inline-flex",padding:"3px 10px",borderRadius:99,background:"rgba(255,255,255,.18)",color:C.white,fontSize:11,fontWeight:600,letterSpacing:1.5,marginBottom:10 }}>{b.label}</span>
         <h2 style={{ margin:"0 0 6px",fontSize:24,fontWeight:800,color:C.white }}>{b.title}</h2>
-        <p style={{ margin:"0 0 18px",fontSize:13,color:"rgba(255,255,255,.8)",maxWidth:320,lineHeight:1.6 }}>{b.sub}</p>
+        <p style={{ margin:"0 0 18px",fontSize:13,color:"rgba(255,255,255,.8)",maxWidth:300,lineHeight:1.6 }}>{b.sub}</p>
         <button onClick={onCta} style={{ padding:"9px 18px",borderRadius:10,border:"none",background:b.accent,color:C.greenDark,fontWeight:700,fontSize:13,cursor:"pointer" }}>{b.cta} →</button>
       </div>
-      <div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>
-      <div style={{ position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6 }}>
+      {!hasPhoto && (
+        <div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>
+      )}
+      <div style={{ position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6,zIndex:2 }}>
         {items.map((_,i)=><div key={i} onClick={()=>{ clearInterval(timer.current); go(i); }} style={{ width:i===idx?20:7,height:7,borderRadius:99,background:i===idx?"rgba(255,255,255,.95)":"rgba(255,255,255,.35)",cursor:"pointer",transition:"all .3s" }} />)}
       </div>
-      {["←","→"].map((a,d)=><button key={a} onClick={()=>{ clearInterval(timer.current); go(idx+(d?1:-1)); }} style={{ position:"absolute",top:"50%",transform:"translateY(-50%)",[d?"right":"left"]:10,background:"rgba(255,255,255,.2)",border:"none",color:C.white,borderRadius:"50%",width:30,height:30,fontSize:14,cursor:"pointer" }}>{a}</button>)}
+      {["←","→"].map((a,d)=><button key={a} onClick={()=>{ clearInterval(timer.current); go(idx+(d?1:-1)); }} style={{ position:"absolute",top:"50%",transform:"translateY(-50%)",[d?"right":"left"]:10,background:"rgba(255,255,255,.2)",border:"none",color:C.white,borderRadius:"50%",width:30,height:30,fontSize:14,cursor:"pointer",zIndex:2 }}>{a}</button>)}
     </div>
   );
 }
