@@ -398,11 +398,6 @@ export default function AdminPage({
       {/* Tab: E-mails */}
       {adminTab==="emails"&&(
         <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-          <div style={{ padding:"10px 14px",background:C.amberLight,border:`1px solid ${C.amber}`,borderRadius:10,marginBottom:4 }}>
-            <p style={{ margin:0,fontSize:13,color:"#92400e",fontWeight:500 }}>
-              📧 Fila de notificações — os emails só serão enviados após configurar um provedor na Edge Function <code>send-email-notifications</code>.
-            </p>
-          </div>
           {adminNotifs.length===0&&<p style={{ color:C.gray400,fontSize:14 }}>Nenhuma notificação na fila.</p>}
           {adminNotifs.map(n=>(
             <div key={n.id} style={{ background:n.sent_at?C.greenLight:n.error_msg?C.redLight:C.white,border:`1px solid ${n.sent_at?C.green:n.error_msg?C.red:C.gray200}`,borderRadius:10,padding:"10px 14px" }}>
