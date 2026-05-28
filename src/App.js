@@ -86,6 +86,57 @@ function StarPicker({ value, onChange }) {
     </div>
   );
 }
+function CityStatePicker({ stateVal, cityVal, onStateChange, onCityChange }) {
+  const [ibgeStates, setIbgeStates] = useState([]);
+  const [ibgeCities, setIbgeCities] = useState([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  useEffect(() => {
+    fetch("https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome")
+      .then(r => r.json()).then(setIbgeStates).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!stateVal) { setIbgeCities([]); return; }
+    setLoadingCities(true);
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateVal}/municipios?orderBy=nome`)
+      .then(r => r.json())
+      .then(d => { setIbgeCities(d); setLoadingCities(false); })
+      .catch(() => setLoadingCities(false));
+  }, [stateVal]);
+  return (
+    <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+      <div>
+        <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Estado</label>
+        <select value={stateVal} onChange={e => { onStateChange(e.target.value); onCityChange(""); }}
+          style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",background:C.white }}>
+          <option value="">Selecione o estado...</option>
+          {ibgeStates.map(s => <option key={s.id} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
+        </select>
+      </div>
+      {stateVal && (
+        <div>
+          <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>
+            Cidade{loadingCities ? " (carregando...)" : ""}
+          </label>
+          <input
+            list={`ibge-cities-${stateVal}`}
+            value={cityVal}
+            onChange={e => onCityChange(e.target.value)}
+            onBlur={e => {
+              const names = ibgeCities.map(c => c.nome);
+              if (e.target.value && !names.includes(e.target.value)) onCityChange("");
+            }}
+            placeholder="Digite para buscar..."
+            disabled={loadingCities}
+            style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",opacity:loadingCities?0.6:1 }}
+          />
+          <datalist id={`ibge-cities-${stateVal}`}>
+            {ibgeCities.map(c => <option key={c.id} value={c.nome} />)}
+          </datalist>
+        </div>
+      )}
+    </div>
+  );
+}
 function Pill({ active,onClick,children,disabled,soon }) {
   return <button onClick={disabled?undefined:onClick} style={{ padding:"6px 14px",borderRadius:99,border:`1.5px solid ${active?C.green:C.gray200}`,background:active?C.greenLight:C.white,color:active?C.greenDark:disabled?"#c4c4c4":C.gray600,fontSize:13,fontWeight:active?600:400,cursor:disabled?"not-allowed":"pointer",whiteSpace:"nowrap",opacity:disabled?.6:1,display:"inline-flex",alignItems:"center",gap:5 }}>{children}{soon&&<span style={{ fontSize:10,background:C.gray100,color:C.gray400,borderRadius:4,padding:"1px 5px" }}>em breve</span>}</button>;
 }
@@ -389,11 +440,11 @@ export default function App() {
   const isMobile = useMobile();
   const [toasts,setToasts]             = useState([]);
   const [contactModal,setContactModal] = useState(null);
-  const [profileForm,setProfileForm]   = useState({ name:"",location:"",bio:"",phone:"" });
+  const [profileForm,setProfileForm]   = useState({ name:"",location:"",state:"",city:"",bio:"",phone:"" });
   const [formErrors,setFormErrors]     = useState({});
   const [profileSaving,setProfileSaving] = useState(false);
   const [profileSaved,setProfileSaved] = useState(false);
-  const [reg,setReg]             = useState({ name:"",email:"",password:"",city:"",bio:"" });
+  const [reg,setReg]             = useState({ name:"",email:"",password:"",state:"",city:"",bio:"" });
   const [loginData,setLoginData] = useState({ email:"",password:"" });
   const [showLoginPwd,setShowLoginPwd] = useState(false);
   const [showAuth,setShowAuth]         = useState(false);
@@ -489,7 +540,7 @@ export default function App() {
   // ── inicializa form de perfil ao abrir a tela ──
   useEffect(()=>{
     if(page==="myProfile"&&profile){
-      setProfileForm({ name:profile.name||"", location:profile.location||"", bio:profile.bio||"", phone:profile.phone||"" });
+      setProfileForm({ name:profile.name||"", location:profile.location||"", state:profile.state||"", city:profile.city||"", bio:profile.bio||"", phone:profile.phone||"" });
       setProfileSaved(false);
     }
   },[page,profile]);
@@ -559,7 +610,7 @@ export default function App() {
     else {
       // update profile with extra info
       const { data:{ session } } = await supabase.auth.getSession();
-      if(session) await supabase.from("profiles").update({ location:reg.city, bio:reg.bio }).eq("id",session.user.id);
+      if(session) await supabase.from("profiles").update({ state:reg.state, city:reg.city, location:[reg.city,reg.state].filter(Boolean).join(", ")||null, bio:reg.bio }).eq("id",session.user.id);
       setAuthError("✅ Conta criada! Verifique seu email para confirmar.");
     }
     setAuthLoading(false);
@@ -643,11 +694,12 @@ export default function App() {
 
   async function handleSaveProfile() {
     setProfileSaving(true);
+    const derivedLocation = [profileForm.city,profileForm.state].filter(Boolean).join(", ")||profileForm.location;
     const { error } = await supabase.from("profiles")
-      .update({ name:profileForm.name, location:profileForm.location, bio:profileForm.bio, phone:profileForm.phone })
+      .update({ name:profileForm.name, location:derivedLocation, state:profileForm.state, city:profileForm.city, bio:profileForm.bio, phone:profileForm.phone })
       .eq("id",user.id);
     if(!error){
-      setProfile(p=>({ ...p, name:profileForm.name, location:profileForm.location, bio:profileForm.bio, phone:profileForm.phone }));
+      setProfile(p=>({ ...p, name:profileForm.name, location:derivedLocation, state:profileForm.state, city:profileForm.city, bio:profileForm.bio, phone:profileForm.phone }));
       setProfileSaved(true);
       addToast("Perfil atualizado com sucesso!");
     } else {
@@ -852,9 +904,10 @@ export default function App() {
             <h3 style={{ margin:"0 0 1.1rem",fontWeight:700,fontSize:17 }}>Criar conta</h3>
             {authError&&<p style={{ margin:"0 0 12px",padding:"10px 14px",background:authError.startsWith("✅")?C.greenLight:C.redLight,color:authError.startsWith("✅")?C.greenDark:C.red,borderRadius:8,fontSize:13 }}>{authError}</p>}
             <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-              {[["Nome completo *","name","text"],["Email *","email","email"],["Senha *","password","password"],["Cidade / Estado","city","text"]].map(([l,k,t])=>(
+              {[["Nome completo *","name","text"],["Email *","email","email"],["Senha *","password","password"]].map(([l,k,t])=>(
                 <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>{l}</label><input type={t} value={reg[k]} onChange={e=>setReg(r=>({...r,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} /></div>
               ))}
+              <CityStatePicker stateVal={reg.state} cityVal={reg.city} onStateChange={v=>setReg(r=>({...r,state:v}))} onCityChange={v=>setReg(r=>({...r,city:v}))} />
               <div><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>Sobre você</label><textarea value={reg.bio} onChange={e=>setReg(r=>({...r,bio:e.target.value}))} rows={3} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }} /></div>
             </div>
             <button onClick={handleRegister} disabled={authLoading||!reg.name||!reg.email||!reg.password} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Criando conta...":"Criar conta"}</button>
@@ -1400,12 +1453,13 @@ export default function App() {
 
           {/* Formulário */}
           <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:18,padding:"1.5rem",display:"flex",flexDirection:"column",gap:14 }}>
-            {[["Nome completo","name","text"],["Cidade / Estado","location","text"],["WhatsApp / Telefone","phone","tel"]].map(([l,k,t])=>(
+            {[["Nome completo","name","text"],["WhatsApp / Telefone","phone","tel"]].map(([l,k,t])=>(
               <div key={k}>
                 <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>{l}</label>
                 <input type={t} value={profileForm[k]} onChange={e=>setProfileForm(f=>({...f,[k]:e.target.value}))} placeholder={k==="phone"?"(11) 99999-9999":""} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
               </div>
             ))}
+            <CityStatePicker stateVal={profileForm.state} cityVal={profileForm.city} onStateChange={v=>setProfileForm(f=>({...f,state:v}))} onCityChange={v=>setProfileForm(f=>({...f,city:v}))} />
             <div>
               <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Bio / Sobre você</label>
               <textarea value={profileForm.bio} onChange={e=>setProfileForm(f=>({...f,bio:e.target.value}))} rows={3} placeholder="Conte um pouco sobre você como colecionador..." style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }} />
