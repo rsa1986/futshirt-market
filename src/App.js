@@ -604,7 +604,7 @@ export default function App() {
   const isMobile = useMobile();
   const [toasts,setToasts]             = useState([]);
   const [contactModal,setContactModal] = useState(null);
-  const [profileForm,setProfileForm]   = useState({ name:"",location:"",state:"",city:"",bio:"",phone:"" });
+  const [profileForm,setProfileForm]   = useState({ name:"",location:"",state:"",city:"",bio:"",phone:"",username:"" });
   const [formErrors,setFormErrors]     = useState({});
   const [profileSaving,setProfileSaving] = useState(false);
   const [profileSaved,setProfileSaved] = useState(false);
@@ -638,6 +638,9 @@ export default function App() {
   const [alertInput, setAlertInput]         = useState("");
   const [publicPortfolioId, setPublicPortfolioId] = useState(null);
   const [publicPortfolioData, setPublicPortfolioData] = useState({ profile:null, shirts:[] });
+  const [showNotifs, setShowNotifs]         = useState(false);
+  const [notifItems, setNotifItems]         = useState([]);
+  const [notifBadge, setNotifBadge]         = useState(0);
 
   // ref para o botão Voltar do navegador (acesso sem deps no event listener)
 
@@ -656,6 +659,10 @@ export default function App() {
     return ()=>subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
+
+  // ── load notifications when user logs in ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(()=>{ if(user) loadNotifications(); },[user]);
 
   // ── load shirts ──
   useEffect(()=>{
@@ -723,7 +730,7 @@ export default function App() {
   // ── inicializa form de perfil ao abrir a tela ──
   useEffect(()=>{
     if(page==="myProfile"&&profile){
-      setProfileForm({ name:profile.name||"", location:profile.location||"", state:profile.state||"", city:profile.city||"", bio:profile.bio||"", phone:profile.phone||"" });
+      setProfileForm({ name:profile.name||"", location:profile.location||"", state:profile.state||"", city:profile.city||"", bio:profile.bio||"", phone:profile.phone||"", username:profile.username||"" });
       setProfileSaved(false);
     }
   },[page,profile]);
@@ -929,13 +936,17 @@ export default function App() {
   async function handleSaveProfile() {
     setProfileSaving(true);
     const derivedLocation = [profileForm.city,profileForm.state].filter(Boolean).join(", ")||profileForm.location;
+    const rawUsername = profileForm.username.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+    const usernameToSave = rawUsername.length>=3 ? rawUsername : null;
     const { error } = await supabase.from("profiles")
-      .update({ name:profileForm.name, location:derivedLocation, state:profileForm.state, city:profileForm.city, bio:profileForm.bio, phone:profileForm.phone })
+      .update({ name:profileForm.name, location:derivedLocation, state:profileForm.state, city:profileForm.city, bio:profileForm.bio, phone:profileForm.phone, username:usernameToSave })
       .eq("id",user.id);
     if(!error){
-      setProfile(p=>({ ...p, name:profileForm.name, location:derivedLocation, state:profileForm.state, city:profileForm.city, bio:profileForm.bio, phone:profileForm.phone }));
+      setProfile(p=>({ ...p, name:profileForm.name, location:derivedLocation, state:profileForm.state, city:profileForm.city, bio:profileForm.bio, phone:profileForm.phone, username:usernameToSave }));
       setProfileSaved(true);
       addToast("Perfil atualizado com sucesso!");
+    } else if(error.message?.includes("unique")||error.message?.includes("duplicate")) {
+      addToast("Este @ já está em uso. Escolha outro.","error");
     } else {
       addToast("Erro ao salvar perfil","error");
     }
@@ -1161,8 +1172,14 @@ export default function App() {
     if(data) setSellerProfile(data);
   }
 
-  async function openPublicPortfolio(userId) {
-    window.history.pushState(null, "", `#portfolio-${userId}`);
+  async function openPublicPortfolio(input) {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
+    let userId = input;
+    if(!isUUID) {
+      const { data:found } = await supabase.from("profiles").select("id").eq("username",input).single();
+      if(!found) { addToast("Portfólio não encontrado","error"); return; }
+      userId = found.id;
+    }
     setPublicPortfolioId(userId);
     setPublicPortfolioData({ profile:null, shirts:[] });
     setPage("publicPortfolio");
@@ -1170,12 +1187,39 @@ export default function App() {
       supabase.from("profiles").select("*").eq("id",userId).single(),
       supabase.from("shirts").select("*").eq("seller_id",userId).neq("status","vendido").order("created_at",{ascending:false}),
     ]);
+    const slug = prof?.username || userId;
+    window.history.pushState(null, "", `#portfolio-${slug}`);
     setPublicPortfolioData({ profile:prof||null, shirts:shts||[] });
   }
 
   function saveAlerts(terms) {
     setAlertTerms(terms);
     localStorage.setItem("fsm_alerts", JSON.stringify(terms));
+  }
+
+  async function loadNotifications() {
+    const lastSeen = parseInt(localStorage.getItem("fsm_notifs_seen")||"0");
+    const since = new Date(lastSeen).toISOString();
+    const [{ data:newQ }, { data:answeredQ }] = await Promise.all([
+      supabase.from("questions")
+        .select("id, created_at, question, shirt:shirts(id,team,edition), asker:profiles!asker_id(name)")
+        .eq("seller_id", user.id).gt("created_at", since)
+        .order("created_at",{ascending:false}).limit(20),
+      supabase.from("questions")
+        .select("id, answered_at, question, answer, shirt:shirts(id,team,edition)")
+        .eq("asker_id", user.id).not("answer","is",null).gt("answered_at", since)
+        .order("answered_at",{ascending:false}).limit(20),
+    ]);
+    const items = [
+      ...(newQ||[]).map(q=>({ type:"new_question", id:q.id, date:q.created_at,
+        text:`${q.asker?.name||"Alguém"} perguntou sobre ${q.shirt?.team||"seu anúncio"}`,
+        sub:q.question, shirtId:q.shirt?.id })),
+      ...(answeredQ||[]).map(q=>({ type:"answered", id:q.id, date:q.answered_at,
+        text:`Sua pergunta sobre ${q.shirt?.team||"um anúncio"} foi respondida`,
+        sub:q.answer, shirtId:q.shirt?.id })),
+    ].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    setNotifItems(items);
+    setNotifBadge(items.length);
   }
 
   // apply filters
@@ -1274,6 +1318,46 @@ export default function App() {
     </div>
   );
 
+  // ── NOTIFICATIONS PANEL ──
+  const notifsPanel = showNotifs && (
+    <div onClick={()=>setShowNotifs(false)} style={{ position:"fixed",inset:0,zIndex:3000 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ position:"absolute",top:56,right:isMobile?8:16,width:isMobile?"calc(100vw - 16px)":350,maxHeight:500,background:C.white,borderRadius:14,boxShadow:"0 8px 40px rgba(0,0,0,.2)",display:"flex",flexDirection:"column",overflow:"hidden",border:`1px solid ${C.gray200}` }}>
+        <div style={{ padding:"12px 16px 10px",borderBottom:`1px solid ${C.gray100}`,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+          <p style={{ margin:0,fontWeight:700,fontSize:14,color:C.gray900 }}>🔔 Notificações</p>
+          <button onClick={()=>setShowNotifs(false)} style={{ background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:20,lineHeight:1,padding:0 }}>×</button>
+        </div>
+        <div style={{ overflowY:"auto",flex:1 }}>
+          {notifItems.length===0 ? (
+            <div style={{ textAlign:"center",padding:"2.5rem 1rem",color:C.gray400 }}>
+              <div style={{ fontSize:36,marginBottom:10 }}>🔔</div>
+              <p style={{ fontSize:13,margin:0 }}>Nenhuma notificação nova</p>
+              <p style={{ fontSize:11,margin:"4px 0 0",color:C.gray400 }}>Perguntas e respostas nos seus anúncios aparecerão aqui.</p>
+            </div>
+          ) : notifItems.map(n=>(
+            <div key={`${n.type}-${n.id}`} onClick={()=>{ if(n.shirtId){openShirt(n.shirtId);setShowNotifs(false);} }}
+              style={{ padding:"12px 16px",borderBottom:`1px solid ${C.gray100}`,cursor:n.shirtId?"pointer":"default",display:"flex",gap:10,alignItems:"flex-start",background:"#fff" }}
+              onMouseEnter={e=>e.currentTarget.style.background=C.gray50} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+              <span style={{ fontSize:22,flexShrink:0,lineHeight:1.2 }}>{n.type==="new_question"?"❓":"💬"}</span>
+              <div style={{ flex:1,minWidth:0 }}>
+                <p style={{ margin:"0 0 2px",fontSize:13,fontWeight:600,color:C.gray900 }}>{n.text}</p>
+                <p style={{ margin:"0 0 4px",fontSize:12,color:C.gray600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>"{n.sub}"</p>
+                <p style={{ margin:0,fontSize:11,color:C.gray400 }}>{new Date(n.date).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        {notifItems.length>0&&(
+          <div style={{ padding:"8px 16px",borderTop:`1px solid ${C.gray100}` }}>
+            <button onClick={()=>{ localStorage.setItem("fsm_notifs_seen",Date.now()); setNotifItems([]); setNotifBadge(0); setShowNotifs(false); }}
+              style={{ width:"100%",padding:"8px 0",border:`1px solid ${C.gray200}`,borderRadius:8,background:C.white,color:C.gray600,fontSize:12,cursor:"pointer" }}>
+              Marcar tudo como lido
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // ── BOOST MODAL ──
   const boostModalEl = boostModal && (
     <div onClick={e=>{ if(e.target===e.currentTarget) setBoostModal(null); }} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center" }}>
@@ -1336,7 +1420,7 @@ export default function App() {
     }
   }
 
-  const NavBar = () => (
+  const NavBar = () => (<>
     <div style={{ borderBottom:`1px solid ${C.gray100}`,marginBottom:20 }}>
       {/* Linha principal */}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"1rem 0 0.6rem" }}>
@@ -1358,6 +1442,9 @@ export default function App() {
             <button onClick={()=>navigate("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
               ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
               {alertMatches.length>0&&<span style={{ background:C.amber,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>🔔{alertMatches.length}</span>}
+            </button>
+            <button onClick={()=>{ setShowNotifs(v=>{if(!v){localStorage.setItem("fsm_notifs_seen",Date.now());setNotifBadge(0);}return !v;}); }} style={{ position:"relative",background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:showNotifs?C.green:C.gray600 }}>
+              🔔{notifBadge>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{notifBadge}</span>}
             </button>
             {!isMobile&&<button onClick={()=>navigate("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
             <div onClick={()=>navigate("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
@@ -1384,7 +1471,8 @@ export default function App() {
         </>}
       </div>}
     </div>
-  );
+    {notifsPanel}
+  </>);
 
   // ── ADD PRODUCT ──
   if(page==="addProduct") {
@@ -2116,7 +2204,7 @@ export default function App() {
             <p style={{ margin:0,fontSize:13,color:C.gray400 }}>{myAll.length} camiseta{myAll.length!==1?"s":""} registrada{myAll.length!==1?"s":""}</p>
           </div>
           <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
-            <button onClick={async()=>{ const url=`${window.location.origin}${window.location.pathname}#portfolio-${user.id}`; try{await navigator.clipboard.writeText(url);addToast("🔗 Link do portfólio copiado!");}catch{addToast("Não foi possível copiar","error");} }}
+            <button onClick={async()=>{ const slug=profile?.username||user.id; const url=`${window.location.origin}${window.location.pathname}#portfolio-${slug}`; try{await navigator.clipboard.writeText(url);addToast("🔗 Link do portfólio copiado!");}catch{addToast("Não foi possível copiar","error");} }}
               style={{ padding:"9px 14px",border:`1px solid ${C.blue}`,borderRadius:10,background:C.blueLight,color:C.blue,fontSize:13,fontWeight:600,cursor:"pointer" }}>
               🔗 Compartilhar
             </button>
@@ -2474,6 +2562,24 @@ export default function App() {
             <div>
               <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Bio / Sobre você</label>
               <textarea value={profileForm.bio} onChange={e=>setProfileForm(f=>({...f,bio:e.target.value}))} rows={3} placeholder="Conte um pouco sobre você como colecionador..." style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }} />
+            </div>
+            <div>
+              <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>@ Username — URL do portfólio público</label>
+              <div style={{ position:"relative" }}>
+                <span style={{ position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.gray400,fontSize:14,fontWeight:600 }}>@</span>
+                <input value={profileForm.username} onChange={e=>setProfileForm(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,"")}))}
+                  placeholder="meu_usuario"
+                  maxLength={20}
+                  style={{ width:"100%",padding:"9px 12px 9px 28px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+              </div>
+              {profileForm.username.length>=3 && (
+                <p style={{ margin:"4px 0 0",fontSize:11,color:C.gray400 }}>
+                  Link: <span style={{ color:C.blue,cursor:"pointer" }} onClick={()=>openPublicPortfolio(profileForm.username)}>
+                    #portfolio-{profileForm.username}
+                  </span>
+                </p>
+              )}
+              <p style={{ margin:"3px 0 0",fontSize:11,color:C.gray400 }}>Mínimo 3 caracteres · só letras, números e _</p>
             </div>
 
             {profileSaved&&<p style={{ margin:0,padding:"8px 12px",background:C.greenLight,color:C.greenDark,borderRadius:8,fontSize:13 }}>✅ Perfil atualizado com sucesso!</p>}
