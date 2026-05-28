@@ -1258,6 +1258,34 @@ export default function App() {
             </div>
           );
         })()}
+
+        {selectedShirt&&(()=>{
+          const fromSeller = available.filter(s=>s.seller_id===selectedShirt.seller_id&&s.id!==selectedShirt.id).slice(0,4);
+          const sameTeam   = available.filter(s=>s.seller_id!==selectedShirt.seller_id&&s.id!==selectedShirt.id&&s.team===selectedShirt.team).slice(0,4);
+          const sameRegion = available.filter(s=>s.seller_id!==selectedShirt.seller_id&&s.id!==selectedShirt.id&&s.team!==selectedShirt.team&&(s.country===selectedShirt.country||s.region===selectedShirt.region));
+          const similar    = [...sameTeam,...sameRegion].slice(0,4);
+          return (
+            <>
+              {fromSeller.length>0&&(
+                <div style={{ marginTop:28 }}>
+                  <SectionHead icon="🏷️" sub="mesmo vendedor" title="Mais deste vendedor" />
+                  <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(148px,1fr))",gap:12 }}>
+                    {fromSeller.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
+                  </div>
+                </div>
+              )}
+              {similar.length>0&&(
+                <div style={{ marginTop:28 }}>
+                  <SectionHead icon="🔍" sub="catálogo" title="Similares no catálogo" />
+                  <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(148px,1fr))",gap:12 }}>
+                    {similar.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
+
         {lightbox && (
           <div onClick={() => setLightbox(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.85)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", cursor:"zoom-out" }}>
             <img src={lightbox} alt="" style={{ maxWidth:"95vw", maxHeight:"95vh", objectFit:"contain", borderRadius:12 }} />
