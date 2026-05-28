@@ -1029,7 +1029,7 @@ export default function App() {
     <div style={{ borderBottom:`1px solid ${C.gray100}`,marginBottom:20 }}>
       {/* Linha principal */}
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"1rem 0 0.6rem" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+        <div onClick={()=>navigate("home")} style={{ display:"flex",alignItems:"center",gap:8,cursor:"pointer" }}>
           <div style={{ width:30,height:30,borderRadius:8,background:C.greenDark,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15 }}>⚽</div>
           <span style={{ fontWeight:800,fontSize:16,color:C.gray900,letterSpacing:-.3 }}>FutShirt</span>
         </div>
