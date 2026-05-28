@@ -104,6 +104,16 @@ function parsePosition(posStr) {
   const n = p => p in named ? named[p] : (parseFloat(p)||50);
   return parts.length >= 2 ? [n(parts[0]), n(parts[1])] : [n(parts[0]), 50];
 }
+function parseDeepLink(link) {
+  if (!link || !link.includes("?")) return { page: link||"catalog", params: {} };
+  const [page, qs] = link.split("?");
+  return { page: page||"catalog", params: Object.fromEntries(new URLSearchParams(qs)) };
+}
+function buildDeepLink(page, params) {
+  const filled = Object.fromEntries(Object.entries(params).filter(([,v])=>v));
+  if (!Object.keys(filled).length) return page;
+  return `${page}?${new URLSearchParams(filled).toString()}`;
+}
 
 function ShirtPhoto({ value, size = 88 }) {
   if (isUrl(value)) {
@@ -259,7 +269,7 @@ function BannerCarousel({ onCta, banners }) {
         <span style={{ display:"inline-flex",padding:"3px 10px",borderRadius:99,background:"rgba(255,255,255,.18)",color:C.white,fontSize:11,fontWeight:600,letterSpacing:1.5,marginBottom:10 }}>{b.label}</span>
         <h2 style={{ margin:"0 0 6px",fontSize:24,fontWeight:800,color:C.white }}>{b.title}</h2>
         <p style={{ margin:"0 0 18px",fontSize:13,color:"rgba(255,255,255,.8)",maxWidth:300,lineHeight:1.6 }}>{b.sub}</p>
-        <button onClick={()=>{ const d=b.link||"catalog"; isUrl(d)?window.open(d,"_blank"):onCta(d); }} style={{ padding:"9px 18px",borderRadius:10,border:"none",background:b.accent,color:C.greenDark,fontWeight:700,fontSize:13,cursor:"pointer" }}>{b.cta} →</button>
+        <button onClick={()=>onCta(b.link||"catalog")} style={{ padding:"9px 18px",borderRadius:10,border:"none",background:b.accent,color:C.greenDark,fontWeight:700,fontSize:13,cursor:"pointer" }}>{b.cta} →</button>
       </div>
       {!hasPhoto&&<div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>}
       <div style={{ position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6,zIndex:2 }}>
@@ -1217,6 +1227,21 @@ export default function App() {
     setSelectedId(null);
     setSelectedShirt(null);
   }
+  function deepNavigate(link) {
+    if (!link) { navigate("catalog"); return; }
+    if (isUrl(link)) { window.open(link, "_blank"); return; }
+    if (link.includes("?")) {
+      const { page, params } = parseDeepLink(link);
+      if (params.search !== undefined) setSearch(params.search);
+      const fKeys = ["type","region","condition","model","size","price","state"];
+      const upd = {};
+      fKeys.forEach(k => { if (params[k]) upd[k] = params[k]; });
+      if (Object.keys(upd).length) setFilters(f => ({...f,...upd}));
+      navigate(page);
+    } else {
+      navigate(link);
+    }
+  }
 
   const NavBar = () => (
     <div style={{ borderBottom:`1px solid ${C.gray100}`,marginBottom:20 }}>
@@ -1477,6 +1502,18 @@ export default function App() {
         <NavBar />
         <TrustBar />
         <button onClick={()=>{ setSelectedId(null); setSelectedShirt(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"0.25rem 0 1rem" }}>← Voltar</button>
+        {profile?.role==="admin"&&selectedShirt&&(
+          <div style={{ display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#fef3c7",borderRadius:10,border:"1px solid #fcd34d",marginBottom:12,flexWrap:"wrap" }}>
+            <span style={{ fontSize:11,fontWeight:700,color:"#92400e",flexShrink:0 }}>⚙️ Admin</span>
+            <span style={{ fontSize:11,color:"#78350f",flexShrink:0 }}>ID do produto:</span>
+            <code style={{ fontSize:11,color:"#78350f",fontFamily:"monospace",background:"#fef9c3",padding:"2px 7px",borderRadius:5,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0 }}>{selectedShirt.id}</code>
+            <button
+              onClick={()=>{ navigator.clipboard.writeText(`item-${selectedShirt.id}`); addToast("Copiado! Cole em Destino no banner admin."); }}
+              style={{ padding:"4px 12px",borderRadius:7,border:"1px solid #f59e0b",background:"#fff",color:"#92400e",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
+              Copiar item-ID
+            </button>
+          </div>
+        )}
         {!selectedShirt ? <Spinner /> : (()=>{
           const s = selectedShirt;
           const sl = s.profiles;
@@ -1662,7 +1699,7 @@ export default function App() {
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
       <NavBar />
       <TrustBar />
-      <BannerCarousel onCta={navigate} banners={banners} />
+      <BannerCarousel onCta={deepNavigate} banners={banners} />
       <CategoryTiles onNavigate={navigate} setFilters={setFilters} />
 
       {shirtsLoading&&<div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12,marginBottom:30 }}>{[...Array(4)].map((_,i)=><SkeletonCard key={i} />)}</div>}
@@ -2180,26 +2217,93 @@ export default function App() {
                     {/* Destino do botão CTA */}
                     {(()=>{
                       const curLink = edit.link!==undefined ? edit.link : (b.link||"catalog");
-                      const presets = [["catalog","🗂 Catálogo"],["sellers","👥 Vendedores"],["home","🏠 Home"],["addProduct","➕ Anunciar"]];
-                      const isPreset = presets.some(([v])=>v===curLink);
+                      const { page: dlPage, params: dlParams } = parseDeepLink(curLink);
+                      const setDest = (pg, prm={}) => setField("link", buildDeepLink(pg, prm));
+                      const updParam = (key, val) => {
+                        const np = {...dlParams};
+                        if (val) np[key]=val; else delete np[key];
+                        setDest(dlPage, np);
+                      };
+                      const DEST_BTNS = [["catalog","🗂 Catálogo"],["sellers","👥 Vendedores"],["home","🏠 Home"],["addProduct","➕ Anunciar"]];
+                      const isCatalog = dlPage==="catalog";
+                      const btnActive = (val) => dlPage===val && !isUrl(curLink);
                       return (
                         <div>
                           <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:6 }}>Destino do botão "{edit.cta||b.cta}"</label>
-                          <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:6 }}>
-                            {presets.map(([val,label])=>(
-                              <button key={val} onClick={()=>setField("link",val)}
-                                style={{ padding:"5px 11px",borderRadius:8,border:`2px solid ${curLink===val?"#14532d":C.gray200}`,background:curLink===val?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                          <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:8 }}>
+                            {DEST_BTNS.map(([val,label])=>(
+                              <button key={val} onClick={()=>setDest(val)}
+                                style={{ padding:"5px 11px",borderRadius:8,border:`2px solid ${btnActive(val)?"#14532d":C.gray200}`,background:btnActive(val)?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
                                 {label}
                               </button>
                             ))}
                           </div>
-                          <input
-                            value={curLink}
-                            onChange={e=>setField("link",e.target.value)}
-                            placeholder="catalog · sellers · home · https://site.com"
-                            style={{ width:"100%",padding:"7px 10px",border:`1px solid ${isPreset?C.gray200:"#14532d"}`,borderRadius:8,fontSize:12,boxSizing:"border-box",color:C.gray700,background:isPreset?"#f9fafb":"#fff" }}
-                          />
-                          <p style={{ margin:"3px 0 0",fontSize:10,color:C.gray400 }}>Clique num atalho acima ou escreva um link personalizado (https://...)</p>
+                          {/* Filtros do catálogo */}
+                          {isCatalog&&(
+                            <div style={{ background:"#f0fdf4",borderRadius:10,border:"1px solid #d1fae5",padding:"10px 12px",display:"flex",flexDirection:"column",gap:9 }}>
+                              <p style={{ margin:0,fontSize:11,fontWeight:700,color:"#166534" }}>Filtros do catálogo (opcional)</p>
+                              <div>
+                                <label style={{ fontSize:10,color:"#166534",display:"block",marginBottom:3 }}>Busca — time, edição, país, ano</label>
+                                <input value={dlParams.search||""} onChange={e=>updParam("search",e.target.value)}
+                                  placeholder="Ex: Palmeiras, Barcelona, Brasil 2025..."
+                                  style={{ width:"100%",padding:"6px 10px",border:"1px solid #d1fae5",borderRadius:7,fontSize:12,boxSizing:"border-box",background:"#fff" }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize:10,color:"#166534",display:"block",marginBottom:3 }}>Categoria</label>
+                                <div style={{ display:"flex",gap:5 }}>
+                                  {[["","Todos"],["times","Times"],["selecoes","Seleções"]].map(([v,l])=>(
+                                    <button key={v} onClick={()=>{ updParam("type",v); if(!v) updParam("region",""); }}
+                                      style={{ padding:"4px 10px",borderRadius:7,border:`1.5px solid ${(dlParams.type||"")===v?"#14532d":"#d1fae5"}`,background:(dlParams.type||"")===v?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>{l}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              {dlParams.type&&(
+                                <div>
+                                  <label style={{ fontSize:10,color:"#166534",display:"block",marginBottom:3 }}>Região</label>
+                                  <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
+                                    {[{id:"",label:"Todas"},...(REGIONS[dlParams.type]||[])].map(r=>(
+                                      <button key={r.id} onClick={()=>updParam("region",r.id)}
+                                        style={{ padding:"4px 10px",borderRadius:7,border:`1.5px solid ${(dlParams.region||"")===r.id?"#14532d":"#d1fae5"}`,background:(dlParams.region||"")===r.id?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>{r.label||"Todas"}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div>
+                                <label style={{ fontSize:10,color:"#166534",display:"block",marginBottom:3 }}>Condição</label>
+                                <div style={{ display:"flex",gap:5 }}>
+                                  {[["","Todas"],["Nova","Nova"],["Usada","Usada"]].map(([v,l])=>(
+                                    <button key={v} onClick={()=>updParam("condition",v)}
+                                      style={{ padding:"4px 10px",borderRadius:7,border:`1.5px solid ${(dlParams.condition||"")===v?"#14532d":"#d1fae5"}`,background:(dlParams.condition||"")===v?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>{l}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <label style={{ fontSize:10,color:"#166534",display:"block",marginBottom:3 }}>Tamanho</label>
+                                <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
+                                  {[["","Todos"],...SIZES.map(s=>[s,s])].map(([v,l])=>(
+                                    <button key={v} onClick={()=>updParam("size",v)}
+                                      style={{ padding:"4px 10px",borderRadius:7,border:`1.5px solid ${(dlParams.size||"")===v?"#14532d":"#d1fae5"}`,background:(dlParams.size||"")===v?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>{l}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              {curLink!=="catalog"&&(
+                                <div style={{ padding:"5px 8px",background:"#fff",borderRadius:6,border:"1px solid #d1fae5" }}>
+                                  <p style={{ margin:0,fontSize:10,color:"#166534",fontFamily:"monospace" }}>{curLink}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* Destino não-catálogo: input livre */}
+                          {!isCatalog&&(
+                            <div>
+                              <input value={curLink} onChange={e=>setField("link",e.target.value)}
+                                placeholder="sellers · home · item-{uuid} · https://..."
+                                style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:12,boxSizing:"border-box" }}
+                              />
+                              <p style={{ margin:"3px 0 0",fontSize:10,color:C.gray400 }}>Produto específico: <strong>item-{"{uuid}"}</strong> — copie o ID na página do produto (admin)</p>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
