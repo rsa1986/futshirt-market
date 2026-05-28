@@ -98,6 +98,12 @@ function buildImgField(url, position, size) {
   if (position === "center center" && size === "cover") return url;
   return JSON.stringify({ url, position, size });
 }
+function parsePosition(posStr) {
+  const named = { left:0, center:50, right:100, top:0, bottom:100 };
+  const parts = (posStr||"center center").trim().split(/\s+/);
+  const n = p => p in named ? named[p] : (parseFloat(p)||50);
+  return parts.length >= 2 ? [n(parts[0]), n(parts[1])] : [n(parts[0]), 50];
+}
 
 function ShirtPhoto({ value, size = 88 }) {
   if (isUrl(value)) {
@@ -2045,21 +2051,23 @@ export default function App() {
               const currentTheme = BANNER_THEMES.find(t=>t.grad===edit.grad);
               return (
                 <div key={b.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,overflow:"hidden" }}>
-                  {/* Preview mini */}
+                  {/* Preview — replica exata do banner ao vivo */}
                   {(()=>{
                     const rawPrev = edit.img!==undefined ? edit.img : (b.img||"");
                     const pd = parseImg(rawPrev);
                     const pHasPhoto = !!pd.url;
                     return (
-                      <div style={{ background:edit.grad||b.grad,padding:"14px 18px",position:"relative",minHeight:70,overflow:"hidden" }}>
+                      <div style={{ position:"relative",background:edit.grad||b.grad,minHeight:pHasPhoto?260:180,overflow:"hidden" }}>
                         {pHasPhoto&&<div style={{ position:"absolute",inset:0,backgroundImage:`url(${pd.url})`,backgroundSize:pd.size,backgroundPosition:pd.position }} />}
-                        {pHasPhoto&&<div style={{ position:"absolute",inset:0,background:"linear-gradient(to right,rgba(0,0,0,.8) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,.15) 100%)" }} />}
-                        <div style={{ position:"relative",zIndex:1 }}>
-                          <span style={{ display:"inline-flex",padding:"2px 8px",borderRadius:99,background:"rgba(255,255,255,.2)",color:"#fff",fontSize:10,fontWeight:600,letterSpacing:1 }}>{edit.label||b.label}</span>
-                          <p style={{ margin:"4px 0 2px",fontWeight:800,fontSize:15,color:"#fff" }}>{edit.title||b.title}</p>
-                          <p style={{ margin:0,fontSize:11,color:"rgba(255,255,255,.8)" }}>{edit.sub||b.sub}</p>
+                        {pHasPhoto&&<div style={{ position:"absolute",inset:0,background:"linear-gradient(to right,rgba(0,0,0,.82) 0%,rgba(0,0,0,.7) 35%,rgba(0,0,0,.35) 65%,rgba(0,0,0,.08) 100%)" }} />}
+                        <div style={{ padding:"2rem 2rem 1.75rem",position:"relative",zIndex:1 }}>
+                          <span style={{ display:"inline-flex",padding:"3px 10px",borderRadius:99,background:"rgba(255,255,255,.18)",color:"#fff",fontSize:11,fontWeight:600,letterSpacing:1.5,marginBottom:10 }}>{edit.label||b.label}</span>
+                          <h2 style={{ margin:"0 0 6px",fontSize:24,fontWeight:800,color:"#fff" }}>{edit.title||b.title}</h2>
+                          <p style={{ margin:"0 0 18px",fontSize:13,color:"rgba(255,255,255,.8)",maxWidth:300,lineHeight:1.6 }}>{edit.sub||b.sub}</p>
+                          <div style={{ display:"inline-flex",padding:"9px 18px",borderRadius:10,background:edit.accent||b.accent,color:"#14532d",fontWeight:700,fontSize:13 }}>{edit.cta||b.cta} →</div>
                         </div>
-                        {!pHasPhoto&&<div style={{ position:"absolute",right:16,top:"50%",transform:"translateY(-50%)",fontSize:36,opacity:.25 }}>{edit.img||b.img}</div>}
+                        {!pHasPhoto&&<div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{edit.img||b.img}</div>}
+                        <div style={{ position:"absolute",top:8,right:10,fontSize:9,letterSpacing:.8,fontWeight:600,color:"rgba(255,255,255,.4)",background:"rgba(0,0,0,.35)",padding:"2px 7px",borderRadius:4 }}>PRÉVIA</div>
                       </div>
                     );
                   })()}
@@ -2083,11 +2091,13 @@ export default function App() {
                       const cur = parseImg(rawImg);
                       const displayVal = cur.url || (!isUrl(rawImg) ? rawImg : "");
                       const hasUrl = !!cur.url;
-                      const POSITIONS = [
-                        ["top left","↖"],["top center","↑"],["top right","↗"],
-                        ["center left","←"],["center center","○"],["center right","→"],
-                        ["bottom left","↙"],["bottom center","↓"],["bottom right","↘"],
-                      ];
+                      const [px, py] = parsePosition(cur.position);
+                      const handleFocal = (e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        const x = Math.max(0,Math.min(100,Math.round(((e.clientX-r.left)/r.width)*100)));
+                        const y = Math.max(0,Math.min(100,Math.round(((e.clientY-r.top)/r.height)*100)));
+                        setField("img", buildImgField(cur.url, `${x}% ${y}%`, cur.size));
+                      };
                       return (
                         <div>
                           <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:3 }}>Imagem (URL) ou Emoji</label>
@@ -2103,44 +2113,54 @@ export default function App() {
                           />
                           {/* Dica de dimensões — sempre visível */}
                           <div style={{ marginTop:6,padding:"9px 11px",background:"#f0fdf4",borderRadius:8,border:"1px solid #d1fae5" }}>
-                            <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:700,color:"#166534" }}>Tamanho ideal da foto</p>
+                            <p style={{ margin:"0 0 3px",fontSize:11,fontWeight:700,color:"#166534" }}>Tamanho ideal da foto</p>
                             <p style={{ margin:0,fontSize:11,color:"#166534",lineHeight:1.7 }}>
-                              <strong>900×400 px</strong> (proporção ~9:4) — foto horizontal/paisagem.<br/>
-                              Fotos <strong>largas</strong> encaixam melhor; fotos verticais (retrato) ficam muito cortadas no modo Cobrir.<br/>
-                              Use uma imagem com <strong>mín. 800 px de largura</strong> para boa nitidez.
+                              <strong>900×400 px</strong> (proporção ~9:4, horizontal/paisagem).<br/>
+                              Fotos <strong>verticais</strong> ficam muito cortadas no modo Cobrir.<br/>
+                              Mínimo recomendado: <strong>800 px de largura</strong>.
                             </p>
                           </div>
                           {hasUrl&&(
-                            <div style={{ marginTop:10,display:"flex",flexDirection:"column",gap:8,padding:"10px 12px",background:"#f9fafb",borderRadius:10,border:`1px solid ${C.gray200}` }}>
-                              {/* Tamanho */}
+                            <div style={{ marginTop:10,display:"flex",flexDirection:"column",gap:10,padding:"12px",background:"#f9fafb",borderRadius:10,border:`1px solid ${C.gray200}` }}>
+                              {/* Modo de exibição */}
                               <div>
-                                <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:700,color:C.gray700 }}>Modo de exibição</p>
-                                <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                                <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.gray700 }}>Modo de exibição</p>
+                                <div style={{ display:"flex",gap:8 }}>
                                   <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"cover"))}
-                                    style={{ flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${cur.size==="cover"?"#14532d":C.gray200}`,background:cur.size==="cover"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",textAlign:"left",lineHeight:1.4 }}>
-                                    <span style={{ display:"block",fontWeight:700,marginBottom:1 }}>Cobrir {cur.size==="cover"&&"✓"}</span>
-                                    <span style={{ fontWeight:400,color:C.gray500 }}>Foto preenche o banner inteiro. Pode cortar as bordas.</span>
+                                    style={{ flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${cur.size==="cover"?"#14532d":C.gray200}`,background:cur.size==="cover"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",textAlign:"left",lineHeight:1.5 }}>
+                                    <span style={{ display:"block",fontWeight:700 }}>Cobrir {cur.size==="cover"&&"✓"}</span>
+                                    <span style={{ fontWeight:400,color:C.gray500 }}>Preenche o banner; pode cortar bordas.</span>
                                   </button>
                                   <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"contain"))}
-                                    style={{ flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${cur.size==="contain"?"#14532d":C.gray200}`,background:cur.size==="contain"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",textAlign:"left",lineHeight:1.4 }}>
-                                    <span style={{ display:"block",fontWeight:700,marginBottom:1 }}>Conter {cur.size==="contain"&&"✓"}</span>
-                                    <span style={{ fontWeight:400,color:C.gray500 }}>Foto inteira visível. Pode sobrar espaço nas laterais.</span>
+                                    style={{ flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${cur.size==="contain"?"#14532d":C.gray200}`,background:cur.size==="contain"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",textAlign:"left",lineHeight:1.5 }}>
+                                    <span style={{ display:"block",fontWeight:700 }}>Conter {cur.size==="contain"&&"✓"}</span>
+                                    <span style={{ fontWeight:400,color:C.gray500 }}>Foto inteira; pode sobrar espaço.</span>
                                   </button>
                                 </div>
                               </div>
-                              {/* Posição */}
+                              {/* Crop / Ponto de foco */}
                               <div>
-                                <p style={{ margin:"0 0 2px",fontSize:11,fontWeight:700,color:C.gray700 }}>Posição — qual parte da foto fica centralizada</p>
-                                <p style={{ margin:"0 0 6px",fontSize:11,color:C.gray400 }}>Útil quando a foto está sendo cortada e o sujeito principal fica fora.</p>
-                                <div style={{ display:"grid",gridTemplateColumns:"repeat(3,34px)",gap:4 }}>
-                                  {POSITIONS.map(([pos,arrow])=>(
-                                    <button key={pos} onClick={()=>setField("img",buildImgField(cur.url,pos,cur.size))}
-                                      title={pos}
-                                      style={{ width:34,height:34,borderRadius:7,border:`2px solid ${cur.position===pos?"#14532d":C.gray200}`,background:cur.position===pos?"#dcfce7":"#fff",fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
-                                      {arrow}
-                                    </button>
-                                  ))}
+                                <p style={{ margin:"0 0 2px",fontSize:11,fontWeight:700,color:C.gray700 }}>Ponto de foco</p>
+                                <p style={{ margin:"0 0 6px",fontSize:11,color:C.gray400 }}>Clique ou arraste na foto para definir qual área fica centralizada no banner.</p>
+                                <div
+                                  style={{ position:"relative",cursor:"crosshair",borderRadius:8,border:"2px solid #14532d",overflow:"hidden",aspectRatio:"3/1",background:"#000",userSelect:"none" }}
+                                  onClick={handleFocal}
+                                  onMouseDown={e=>e.preventDefault()}
+                                  onMouseMove={e=>{ if(e.buttons===1) handleFocal(e); }}
+                                >
+                                  <img src={cur.url} draggable={false}
+                                    style={{ width:"100%",height:"100%",objectFit:"cover",objectPosition:`${px}% ${py}%`,display:"block",pointerEvents:"none" }}
+                                    alt=""
+                                  />
+                                  {/* Linhas-guia */}
+                                  <div style={{ position:"absolute",left:`${px}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.3)",pointerEvents:"none" }} />
+                                  <div style={{ position:"absolute",top:`${py}%`,left:0,right:0,height:1,background:"rgba(255,255,255,.3)",pointerEvents:"none" }} />
+                                  {/* Mira */}
+                                  <div style={{ position:"absolute",left:`${px}%`,top:`${py}%`,transform:"translate(-50%,-50%)",pointerEvents:"none",zIndex:3 }}>
+                                    <div style={{ width:20,height:20,borderRadius:"50%",border:"3px solid #fff",boxShadow:"0 0 0 2px #14532d,0 2px 8px rgba(0,0,0,.6)",background:"rgba(255,255,255,.15)" }} />
+                                  </div>
                                 </div>
+                                <p style={{ margin:"4px 0 0",fontSize:10,color:C.gray400,textAlign:"right" }}>Foco: {px}% × {py}%</p>
                               </div>
                             </div>
                           )}
