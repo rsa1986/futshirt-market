@@ -316,7 +316,7 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
           </span>
         )}
 
-        {(disc > 0 || isNew || boosted) && (
+        {(disc > 0 || isNew || boosted || s.status==="para_troca") && (
           <div style={{ position:"absolute",top:8,left:8,display:"flex",flexDirection:"column",gap:3 }}>
             {boosted && (
               <span style={{ background:"linear-gradient(90deg,#f59e0b,#f97316)",color:C.white,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start",letterSpacing:.4 }}>
@@ -331,6 +331,11 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
             {isNew && (
               <span style={{ background:C.green,color:C.white,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start" }}>
                 ✨ Novo
+              </span>
+            )}
+            {s.status==="para_troca" && (
+              <span style={{ background:"#f5f3ff",color:"#7c3aed",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start",border:"1px solid #c4b5fd" }}>
+                🔄 Troca
               </span>
             )}
           </div>
@@ -629,6 +634,10 @@ export default function App() {
   const [adminNotifs, setAdminNotifs]       = useState([]);
   const [boostModal, setBoostModal]         = useState(null); // shirt object
   const [boostLoading, setBoostLoading]     = useState(false);
+  const [alertTerms, setAlertTerms]         = useState(()=>{ try{return JSON.parse(localStorage.getItem("fsm_alerts")||"[]");}catch{return [];} });
+  const [alertInput, setAlertInput]         = useState("");
+  const [publicPortfolioId, setPublicPortfolioId] = useState(null);
+  const [publicPortfolioData, setPublicPortfolioData] = useState({ profile:null, shirts:[] });
 
   // ref para o botão Voltar do navegador (acesso sem deps no event listener)
 
@@ -681,8 +690,9 @@ export default function App() {
   // ── hash routing: lê hash inicial e navega para a página correta ──
   useEffect(()=>{
     const hash = window.location.hash.slice(1);
-    if(hash.startsWith("seller-"))      openSeller(hash.replace("seller-",""));
-    else if(hash.startsWith("item-"))   openShirt(hash.replace("item-",""));
+    if(hash.startsWith("seller-"))         openSeller(hash.replace("seller-",""));
+    else if(hash.startsWith("item-"))      openShirt(hash.replace("item-",""));
+    else if(hash.startsWith("portfolio-")) openPublicPortfolio(hash.replace("portfolio-",""));
     else if(["catalog","sellers","wishlist"].includes(hash)) setPage(hash);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
@@ -697,6 +707,8 @@ export default function App() {
       } else if(hash.startsWith("item-")){
         setSellerSlug(null); setSellerProfile(null);
         openShirt(hash.replace("item-",""));
+      } else if(hash.startsWith("portfolio-")){
+        openPublicPortfolio(hash.replace("portfolio-",""));
       } else {
         setSellerSlug(null); setSellerProfile(null);
         setSelectedId(null); setSelectedShirt(null);
@@ -836,6 +848,18 @@ export default function App() {
 
   async function handleAddShirt() {
     setFormSaving(true);
+    if(!editingShirtId) {
+      const myShirts = shirts.filter(s=>s.seller_id===user.id);
+      const dup = myShirts.find(s=>
+        s.team.toLowerCase().trim()===form.team.toLowerCase().trim()&&
+        String(s.year)===String(form.year)&&
+        s.size===form.size
+      );
+      if(dup){
+        const ok = window.confirm(`Você já tem "${dup.team}${dup.year?" "+dup.year:""} (${dup.size})" na sua coleção.\n\nAdicionar mesmo assim?`);
+        if(!ok){ setFormSaving(false); return; }
+      }
+    }
     const payload = {
       team:form.team, country:form.country, year:parseInt(form.year)||2024,
       edition:form.edition, condition:form.condition, price:parseFloat(form.price)||0,
@@ -1137,13 +1161,29 @@ export default function App() {
     if(data) setSellerProfile(data);
   }
 
+  async function openPublicPortfolio(userId) {
+    window.history.pushState(null, "", `#portfolio-${userId}`);
+    setPublicPortfolioId(userId);
+    setPublicPortfolioData({ profile:null, shirts:[] });
+    setPage("publicPortfolio");
+    const [{ data:prof }, { data:shts }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id",userId).single(),
+      supabase.from("shirts").select("*").eq("seller_id",userId).neq("status","vendido").order("created_at",{ascending:false}),
+    ]);
+    setPublicPortfolioData({ profile:prof||null, shirts:shts||[] });
+  }
+
+  function saveAlerts(terms) {
+    setAlertTerms(terms);
+    localStorage.setItem("fsm_alerts", JSON.stringify(terms));
+  }
+
   // apply filters
   function applyFilters(list) {
     return list.filter(s=>{
       if(s.profiles?.blocked) return false;
       if(s.status === "vendido") return false;
       if(s.status === "na_colecao") return false;
-      if(s.status === "para_troca") return false;
       if(search && !`${s.team} ${s.edition} ${s.country} ${s.year}`.toLowerCase().includes(search.toLowerCase())) return false;
       if(filters.state     && s.profiles?.state !== filters.state) return false;
       if(filters.type      && s.type      !== filters.type)      return false;
@@ -1164,11 +1204,17 @@ export default function App() {
   }
 
   const filtered  = applyFilters(shirts);
-  const available = shirts.filter(s=>s.status!=="vendido"&&!s.profiles?.blocked);
-  const promos    = available.filter(s=>s.price_old);
-  // featured removido — home agora usa seções dinâmicas (recent, topRated, promos)
-  const recent    = available.slice(0,6);
-  const topRated  = available.filter(s=>(s.rating||0)>=4).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,6);
+  const available = shirts.filter(s=>s.status!=="vendido"&&s.status!=="na_colecao"&&!s.profiles?.blocked);
+  const forSale   = available.filter(s=>s.status==="disponivel");
+  const promos    = forSale.filter(s=>s.price_old);
+  const recent    = forSale.slice(0,6);
+  const topRated  = forSale.filter(s=>(s.rating||0)>=4).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,6);
+  const sevenDaysAgo = Date.now()-7*24*60*60*1000;
+  const alertMatches = (user&&alertTerms.length) ? shirts.filter(s=>
+    s.status==="disponivel"&&s.seller_id!==user.id&&
+    new Date(s.created_at).getTime()>sevenDaysAgo&&
+    alertTerms.some(t=>`${s.team} ${s.edition||""} ${s.country||""}`.toLowerCase().includes(t.toLowerCase()))
+  ) : [];
 
   // ── TOAST LAYER (position:fixed, aparece sobre qualquer página) ──
   const toastEl = toasts.length>0&&(
@@ -1311,6 +1357,7 @@ export default function App() {
           {user ? <>
             <button onClick={()=>navigate("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
               ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
+              {alertMatches.length>0&&<span style={{ background:C.amber,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>🔔{alertMatches.length}</span>}
             </button>
             {!isMobile&&<button onClick={()=>navigate("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
             <div onClick={()=>navigate("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
@@ -1958,6 +2005,50 @@ export default function App() {
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
       <NavBar />
       <SectionHead icon="♥" sub="minha lista" title="Lista de desejos" />
+
+      {/* Alertas de busca */}
+      <div style={{ background:"#fffbeb",border:"1px solid #fde68a",borderRadius:14,padding:"14px 16px",marginBottom:20 }}>
+        <p style={{ margin:"0 0 4px",fontWeight:700,fontSize:13,color:"#92400e" }}>🔔 Alertas de busca</p>
+        <p style={{ margin:"0 0 10px",fontSize:12,color:"#b45309" }}>Monitore times ou edições — avisamos quando aparecerem no catálogo.</p>
+        <div style={{ display:"flex",gap:8,marginBottom:10 }}>
+          <input value={alertInput} onChange={e=>setAlertInput(e.target.value)}
+            placeholder="Ex: Palmeiras, Barcelona, Copa 2002..."
+            onKeyDown={e=>{ if(e.key==="Enter"){const t=alertInput.trim();if(t&&!alertTerms.includes(t)){saveAlerts([...alertTerms,t]);setAlertInput("");}} }}
+            style={{ flex:1,padding:"8px 12px",border:"1px solid #fde68a",borderRadius:9,fontSize:13,outline:"none" }} />
+          <button onClick={()=>{ const t=alertInput.trim(); if(t&&!alertTerms.includes(t)){saveAlerts([...alertTerms,t]);setAlertInput("");} }}
+            style={{ padding:"8px 14px",background:"#f59e0b",border:"none",borderRadius:9,color:"#fff",fontWeight:600,cursor:"pointer",fontSize:13,flexShrink:0 }}>
+            + Alerta
+          </button>
+        </div>
+        {alertTerms.length>0&&(
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:alertMatches.length>0?10:0 }}>
+            {alertTerms.map(t=>(
+              <span key={t} style={{ display:"inline-flex",alignItems:"center",gap:5,background:"#fff",border:"1px solid #fde68a",borderRadius:99,padding:"3px 10px",fontSize:12,color:"#92400e" }}>
+                🔍 {t}
+                <button onClick={()=>saveAlerts(alertTerms.filter(x=>x!==t))} style={{ background:"none",border:"none",color:"#f59e0b",cursor:"pointer",fontSize:15,padding:0,lineHeight:1 }}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {alertMatches.length>0&&(
+          <div style={{ padding:"10px 12px",background:"#fff",borderRadius:10,border:"1px solid #fde68a" }}>
+            <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:12,color:"#92400e" }}>🆕 {alertMatches.length} camiseta{alertMatches.length!==1?"s":""} nos últimos 7 dias:</p>
+            <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+              {alertMatches.slice(0,5).map(s=>(
+                <div key={s.id} onClick={()=>openShirt(s.id)} style={{ display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 8px",borderRadius:8,background:"#fffbeb" }}>
+                  <div style={{ width:36,height:36,borderRadius:7,overflow:"hidden",background:C.gray50,flexShrink:0 }}><ShirtPhoto value={(s.photos||[])[0]||"⚽"} size={36} /></div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ margin:0,fontWeight:600,fontSize:12,color:C.gray900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.team}{s.edition?` · ${s.edition}`:""}</p>
+                    <p style={{ margin:0,fontSize:11,color:C.gray400 }}>{s.year} · R$ {Number(s.price).toLocaleString("pt-BR")}</p>
+                  </div>
+                  <span style={{ fontSize:11,color:C.green,fontWeight:600,flexShrink:0 }}>Ver →</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {wishlist.length===0
         ?<EmptyState
             emoji="♡"
@@ -2024,10 +2115,16 @@ export default function App() {
             <h2 style={{ margin:"0 0 2px",fontWeight:800,fontSize:20 }}>📚 Meu Portfólio</h2>
             <p style={{ margin:0,fontSize:13,color:C.gray400 }}>{myAll.length} camiseta{myAll.length!==1?"s":""} registrada{myAll.length!==1?"s":""}</p>
           </div>
-          <button onClick={()=>{ setForm(emptyForm); setFormStep(1); setFormDone(false); setEditingShirtId(null); setPage("addProduct"); }}
-            style={{ padding:"9px 18px",border:"none",borderRadius:10,background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>
-            + Adicionar camiseta
-          </button>
+          <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+            <button onClick={async()=>{ const url=`${window.location.origin}${window.location.pathname}#portfolio-${user.id}`; try{await navigator.clipboard.writeText(url);addToast("🔗 Link do portfólio copiado!");}catch{addToast("Não foi possível copiar","error");} }}
+              style={{ padding:"9px 14px",border:`1px solid ${C.blue}`,borderRadius:10,background:C.blueLight,color:C.blue,fontSize:13,fontWeight:600,cursor:"pointer" }}>
+              🔗 Compartilhar
+            </button>
+            <button onClick={()=>{ setForm(emptyForm); setFormStep(1); setFormDone(false); setEditingShirtId(null); setPage("addProduct"); }}
+              style={{ padding:"9px 18px",border:"none",borderRadius:10,background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>
+              + Adicionar
+            </button>
+          </div>
         </div>
         {/* Stats */}
         <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(5,1fr)",gap:10,marginBottom:16 }}>
@@ -2067,6 +2164,64 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* Estatísticas detalhadas */}
+        {myAll.length>0&&(()=>{
+          const byYear = {};
+          const byCond = { Nova:0, Usada:0 };
+          const bySize = {};
+          myAll.forEach(s=>{
+            if(s.year) byYear[s.year]=(byYear[s.year]||0)+1;
+            if(s.condition) byCond[s.condition]=(byCond[s.condition]||0)+1;
+            if(s.size) bySize[s.size]=(bySize[s.size]||0)+1;
+          });
+          const topYears = Object.entries(byYear).sort((a,b)=>b[1]-a[1]).slice(0,5);
+          const topSizes = Object.entries(bySize).sort((a,b)=>b[1]-a[1]);
+          const mostVal = myAll.filter(s=>s.price).sort((a,b)=>(b.price||0)-(a.price||0))[0];
+          const roi = totalInvested>0 ? Math.round(((totalValue-totalInvested)/totalInvested)*100) : null;
+          return (
+            <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:14,padding:"12px 16px",marginBottom:16 }}>
+              <p style={{ margin:"0 0 12px",fontWeight:700,fontSize:12,color:C.gray700 }}>Estatísticas detalhadas</p>
+              <div style={{ display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:10 }}>
+                {topYears.length>0&&<div style={{ background:C.gray50,borderRadius:10,padding:"10px 12px" }}>
+                  <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.gray600 }}>Por ano</p>
+                  {topYears.map(([yr,n])=>(
+                    <div key={yr} style={{ display:"flex",justifyContent:"space-between",fontSize:12,padding:"2px 0" }}>
+                      <span style={{ color:C.gray700 }}>{yr}</span><span style={{ fontWeight:700,color:C.green }}>{n}</span>
+                    </div>
+                  ))}
+                </div>}
+                <div style={{ background:C.gray50,borderRadius:10,padding:"10px 12px" }}>
+                  <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.gray600 }}>Condição</p>
+                  {Object.entries(byCond).filter(([,n])=>n>0).map(([c,n])=>(
+                    <div key={c} style={{ display:"flex",justifyContent:"space-between",fontSize:12,padding:"2px 0" }}>
+                      <span style={{ color:C.gray700 }}>{c}</span><span style={{ fontWeight:700,color:C.green }}>{n}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background:C.gray50,borderRadius:10,padding:"10px 12px" }}>
+                  <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.gray600 }}>Por tamanho</p>
+                  {topSizes.map(([sz,n])=>(
+                    <div key={sz} style={{ display:"flex",justifyContent:"space-between",fontSize:12,padding:"2px 0" }}>
+                      <span style={{ color:C.gray700 }}>{sz}</span><span style={{ fontWeight:700,color:C.green }}>{n}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background:C.gray50,borderRadius:10,padding:"10px 12px" }}>
+                  <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.gray600 }}>Destaques</p>
+                  {mostVal&&<div style={{ marginBottom:4 }}>
+                    <p style={{ margin:0,fontSize:10,color:C.gray400 }}>Mais valiosa</p>
+                    <p style={{ margin:0,fontSize:12,fontWeight:600,color:C.gray900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{mostVal.team}</p>
+                    <p style={{ margin:0,fontSize:12,fontWeight:700,color:C.green }}>R$ {Number(mostVal.price).toLocaleString("pt-BR")}</p>
+                  </div>}
+                  {roi!==null&&<div>
+                    <p style={{ margin:0,fontSize:10,color:C.gray400 }}>Valorização</p>
+                    <p style={{ margin:0,fontSize:16,fontWeight:800,color:roi>=0?C.green:C.red }}>{roi>=0?"+":""}{roi}%</p>
+                  </div>}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {/* Busca + Tabs */}
         <div style={{ display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center" }}>
           <div style={{ position:"relative",flex:1,minWidth:200 }}>
@@ -2128,6 +2283,140 @@ export default function App() {
               );
             })}
           </div>
+        )}
+        {/* Para troca de outros colecionadores */}
+        {(()=>{
+          const myTeams = new Set(myAll.map(s=>s.team.toLowerCase()));
+          const othersTroca = shirts.filter(s=>s.status==="para_troca"&&s.seller_id!==user.id&&!s.profiles?.blocked);
+          const matching = othersTroca.filter(s=>myTeams.has(s.team.toLowerCase()));
+          const others   = othersTroca.filter(s=>!myTeams.has(s.team.toLowerCase())).slice(0,6);
+          if(othersTroca.length===0) return null;
+          return (
+            <div style={{ marginTop:24,borderTop:`1px solid ${C.gray200}`,paddingTop:20 }}>
+              <p style={{ margin:"0 0 4px",fontWeight:700,fontSize:15,color:C.gray900 }}>🔄 Para troca de outros colecionadores</p>
+              <p style={{ margin:"0 0 14px",fontSize:13,color:C.gray400 }}>Colecionadores que querem trocar camisetas que você também pode ter.</p>
+              {matching.length>0&&<>
+                <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:12,color:"#7c3aed" }}>⭐ Times que você coleciona</p>
+                <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:16 }}>
+                  {matching.slice(0,6).map(s=>(
+                    <div key={s.id} onClick={()=>openShirt(s.id)} style={{ background:"#f5f3ff",border:"1px solid #c4b5fd",borderRadius:12,padding:"10px 12px",cursor:"pointer",display:"flex",gap:10,alignItems:"center" }}>
+                      <div style={{ width:44,height:44,borderRadius:8,overflow:"hidden",background:C.white,flexShrink:0 }}><ShirtPhoto value={(s.photos||[])[0]||"⚽"} size={44} /></div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <p style={{ margin:"0 0 1px",fontWeight:700,fontSize:12,color:C.gray900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.team}</p>
+                        <p style={{ margin:0,fontSize:11,color:"#7c3aed",fontWeight:600 }}>🔄 Para troca</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>}
+              {others.length>0&&<>
+                <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:12,color:C.gray600 }}>Outros disponíveis para troca</p>
+                <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(auto-fill,minmax(220px,1fr))",gap:10 }}>
+                  {others.map(s=>(
+                    <div key={s.id} onClick={()=>openShirt(s.id)} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,padding:"10px 12px",cursor:"pointer",display:"flex",gap:10,alignItems:"center" }}>
+                      <div style={{ width:44,height:44,borderRadius:8,overflow:"hidden",background:C.gray50,flexShrink:0 }}><ShirtPhoto value={(s.photos||[])[0]||"⚽"} size={44} /></div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <p style={{ margin:"0 0 1px",fontWeight:700,fontSize:12,color:C.gray900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.team}</p>
+                        <p style={{ margin:0,fontSize:11,color:"#7c3aed",fontWeight:600 }}>🔄 Para troca</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>}
+            </div>
+          );
+        })()}
+        <Footer onNavigate={navigate} />
+        {authModal}{toastEl}
+      </div>
+    );
+  }
+
+  // ── PORTFÓLIO PÚBLICO ──
+  if(page==="publicPortfolio") {
+    const { profile:pubProf, shirts:pubShirts } = publicPortfolioData;
+    const pubCounts = {
+      colecao: pubShirts.filter(s=>s.status==="na_colecao").length,
+      venda:   pubShirts.filter(s=>s.status==="disponivel").length,
+      troca:   pubShirts.filter(s=>s.status==="para_troca").length,
+    };
+    const PUB_STATUS = {
+      disponivel: { label:"À venda",    color:C.green,   bg:C.greenLight },
+      na_colecao: { label:"Na coleção", color:"#1d4ed8", bg:"#eff6ff"   },
+      para_troca: { label:"Para troca", color:"#7c3aed", bg:"#f5f3ff"   },
+    };
+    return (
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
+        <NavBar />
+        <TrustBar />
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"flex-start",gap:16,marginBottom:20,flexWrap:"wrap" }}>
+          {pubProf ? <Avatar name={pubProf.name} size={64} src={pubProf.avatar_url} /> : <div style={{ width:64,height:64,borderRadius:"50%",...shimmerBase }} />}
+          <div style={{ flex:1,minWidth:0 }}>
+            {pubProf ? <>
+              <h2 style={{ margin:"0 0 4px",fontWeight:800,fontSize:20 }}>📚 Portfólio de {pubProf.name}</h2>
+              {pubProf.bio&&<p style={{ margin:"0 0 8px",fontSize:13,color:C.gray600,lineHeight:1.5 }}>{pubProf.bio}</p>}
+              <div style={{ display:"flex",gap:12,flexWrap:"wrap" }}>
+                <span style={{ fontSize:12,color:C.gray600 }}>📦 {pubShirts.length} camiseta{pubShirts.length!==1?"s":""}</span>
+                {pubProf.location&&<span style={{ fontSize:12,color:C.gray600 }}>📍 {pubProf.location}</span>}
+                {pubCounts.troca>0&&<span style={{ fontSize:12,color:"#7c3aed",fontWeight:600 }}>🔄 {pubCounts.troca} para troca</span>}
+              </div>
+            </> : <div style={{ ...shimmerBase,height:20,width:200,marginBottom:8 }} />}
+          </div>
+          {pubProf&&<button onClick={()=>openSeller(publicPortfolioId)} style={{ padding:"8px 16px",border:`1px solid ${C.green}`,borderRadius:10,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer",flexShrink:0 }}>Ver anúncios →</button>}
+        </div>
+        {/* Stats rápidos */}
+        {pubShirts.length>0&&(
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16 }}>
+            {[["📚",pubCounts.colecao,"Na coleção","#1d4ed8","#eff6ff"],["🏷️",pubCounts.venda,"À venda",C.greenDark,C.greenLight],["🔄",pubCounts.troca,"Para troca","#7c3aed","#f5f3ff"]].map(([icon,n,label,color,bg])=>(
+              <div key={label} style={{ background:bg,borderRadius:12,padding:"10px 8px",textAlign:"center",border:`1px solid ${color}22` }}>
+                <div style={{ fontSize:20,marginBottom:2 }}>{icon}</div>
+                <div style={{ fontSize:20,fontWeight:800,color }}>{n}</div>
+                <div style={{ fontSize:10,color,fontWeight:600 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Lista de camisetas */}
+        {pubShirts.length===0&&!pubProf ? (
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {[...Array(4)].map((_,i)=><div key={i} style={{ ...shimmerBase,height:72,borderRadius:12 }} />)}
+          </div>
+        ) : pubShirts.length===0 ? (
+          <EmptyState emoji="📭" title="Portfólio vazio" sub="Este colecionador ainda não adicionou camisetas." />
+        ) : (
+          <>
+            {["na_colecao","para_troca","disponivel"].map(status=>{
+              const group = pubShirts.filter(s=>s.status===status);
+              if(!group.length) return null;
+              const meta = PUB_STATUS[status];
+              return (
+                <div key={status} style={{ marginBottom:20 }}>
+                  <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:13,color:meta.color }}>{status==="na_colecao"?"📚 Na coleção":status==="para_troca"?"🔄 Para troca":"🏷️ À venda"} <span style={{ fontWeight:400,color:C.gray400 }}>({group.length})</span></p>
+                  <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                    {group.map(sh=>(
+                      <div key={sh.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:12 }}>
+                        <div style={{ width:56,height:56,borderRadius:10,overflow:"hidden",background:C.gray50,flexShrink:0 }}>
+                          <ShirtPhoto value={(sh.photos||[])[0]||"⚽"} size={56} />
+                        </div>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:2 }}>
+                            <p style={{ margin:0,fontWeight:700,fontSize:14,color:C.gray900,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{sh.team}</p>
+                            <span style={{ flexShrink:0,fontSize:10,fontWeight:700,color:meta.color,background:meta.bg,padding:"2px 7px",borderRadius:99 }}>{meta.label}</span>
+                          </div>
+                          <p style={{ margin:0,fontSize:12,color:C.gray400 }}>{[sh.edition,sh.year,sh.size,sh.condition].filter(Boolean).join(" · ")}</p>
+                          {sh.price&&sh.status!=="na_colecao"&&<span style={{ fontSize:13,fontWeight:700,color:C.green }}>R$ {Number(sh.price).toLocaleString("pt-BR")}</span>}
+                        </div>
+                        <button onClick={()=>openShirt(sh.id)} style={{ flexShrink:0,padding:"6px 12px",border:`1px solid ${meta.color}`,borderRadius:9,background:meta.bg,color:meta.color,fontSize:12,fontWeight:600,cursor:"pointer" }}>
+                          {status==="para_troca"?"🔄 Troca":"Ver →"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </>
         )}
         <Footer onNavigate={navigate} />
         {authModal}{toastEl}
