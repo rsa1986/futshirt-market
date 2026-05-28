@@ -494,6 +494,7 @@ export default function App() {
   const [answerTexts, setAnswerTexts]       = useState({});
   const [answerLoading, setAnswerLoading]   = useState(null);
   const [adminQuestions, setAdminQuestions] = useState([]);
+  const [adminNotifs, setAdminNotifs]       = useState([]);
 
   // ref para o botão Voltar do navegador (acesso sem deps no event listener)
 
@@ -841,6 +842,12 @@ export default function App() {
       try { await navigator.clipboard.writeText(url); addToast("🔗 Link copiado!"); }
       catch { addToast("Não foi possível copiar o link","error"); }
     }
+  }
+
+  async function loadAdminNotifs() {
+    const { data } = await supabase.from("email_notifications")
+      .select("*").order("created_at",{ ascending:false }).limit(100);
+    setAdminNotifs(data || []);
   }
 
   async function loadAdminQuestions() {
@@ -1750,8 +1757,8 @@ export default function App() {
 
         {/* Tabs */}
         <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8,flexWrap:"wrap" }}>
-          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["banners","🖼️ Banners"],["questions","❓ Perguntas"]].map(([v,l])=>(
-            <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); }} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
+          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["banners","🖼️ Banners"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
+            <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); if(v==="emails") loadAdminNotifs(); }} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
           ))}
         </div>
 
@@ -1855,6 +1862,36 @@ export default function App() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Tab: E-mails */}
+        {adminTab==="emails"&&(
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            <div style={{ padding:"10px 14px",background:C.amberLight,border:`1px solid ${C.amber}`,borderRadius:10,marginBottom:4 }}>
+              <p style={{ margin:0,fontSize:13,color:"#92400e",fontWeight:500 }}>
+                📧 Fila de notificações — os emails só serão enviados após configurar um provedor na Edge Function <code>send-email-notifications</code>.
+              </p>
+            </div>
+            {adminNotifs.length===0&&<p style={{ color:C.gray400,fontSize:14 }}>Nenhuma notificação na fila.</p>}
+            {adminNotifs.map(n=>(
+              <div key={n.id} style={{ background:n.sent_at?C.greenLight:n.error_msg?C.redLight:C.white, border:`1px solid ${n.sent_at?C.green:n.error_msg?C.red:C.gray200}`,borderRadius:10,padding:"10px 14px" }}>
+                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:10 }}>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:3 }}>
+                      <span style={{ fontSize:11,fontWeight:700,background:n.type==="new_question"?C.blueLight:C.purpleLight,color:n.type==="new_question"?C.blue:C.purple,borderRadius:6,padding:"2px 8px" }}>
+                        {n.type==="new_question"?"Nova pergunta":"Pergunta respondida"}
+                      </span>
+                      <span style={{ fontSize:11,color:C.gray400 }}>{new Date(n.created_at).toLocaleString("pt-BR")}</span>
+                    </div>
+                    <p style={{ margin:"0 0 2px",fontSize:13,color:C.gray600 }}>Para: <b>{n.recipient_email||"—"}</b></p>
+                    <p style={{ margin:0,fontSize:12,color:C.gray400 }}>{n.data?.shirt_team} · por {n.data?.asker_name||n.data?.seller_name}</p>
+                    {n.error_msg&&<p style={{ margin:"4px 0 0",fontSize:11,color:C.red }}>Erro: {n.error_msg}</p>}
+                  </div>
+                  <span style={{ fontSize:18,flexShrink:0 }}>{n.sent_at?"✅":n.error_msg?"❌":"⏳"}</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
