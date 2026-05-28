@@ -85,6 +85,19 @@ function Tag({ rarity }) {
 }function isUrl(val) {
   return typeof val === "string" && val.startsWith("http");
 }
+function parseImg(img) {
+  if (!img) return { url: null, position: "center center", size: "cover" };
+  if (img.startsWith("{")) {
+    try { const p = JSON.parse(img); return { url: p.url||null, position: p.position||"center center", size: p.size||"cover" }; } catch {}
+  }
+  if (isUrl(img)) return { url: img, position: "center center", size: "cover" };
+  return { url: null, position: "center center", size: "cover" };
+}
+function buildImgField(url, position, size) {
+  if (!url || !isUrl(url)) return url || "";
+  if (position === "center center" && size === "cover") return url;
+  return JSON.stringify({ url, position, size });
+}
 
 function ShirtPhoto({ value, size = 88 }) {
   if (isUrl(value)) {
@@ -226,28 +239,21 @@ function BannerCarousel({ onCta, banners }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{ timer.current=setInterval(()=>go(idx+1),4000); return()=>clearInterval(timer.current); },[idx]);
   const b = items[idx];
-  const hasPhoto = isUrl(b.img);
+  const imgData = parseImg(b.img);
+  const hasPhoto = !!imgData.url;
   return (
-    <div style={{ borderRadius:18,overflow:"hidden",marginBottom:28,position:"relative",background:b.grad,minHeight:hasPhoto?240:180 }}>
-      {/* Foto de fundo (lado direito) */}
-      {hasPhoto && (
-        <div style={{
-          position:"absolute",right:0,top:0,bottom:0,width:"55%",
-          backgroundImage:`url(${b.img})`,
-          backgroundSize:"cover",backgroundPosition:"center top",
-          WebkitMaskImage:"linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 35%,rgba(0,0,0,1) 100%)",
-          maskImage:"linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 35%,rgba(0,0,0,1) 100%)",
-        }} />
-      )}
-      <div style={{ padding:"2rem 2rem 1.75rem",position:"relative",zIndex:1,maxWidth:hasPhoto?"55%":"100%" }}>
+    <div style={{ borderRadius:18,overflow:"hidden",marginBottom:28,position:"relative",background:b.grad,minHeight:hasPhoto?260:180 }}>
+      {/* Foto cobre banner inteiro */}
+      {hasPhoto&&<div style={{ position:"absolute",inset:0,backgroundImage:`url(${imgData.url})`,backgroundSize:imgData.size,backgroundPosition:imgData.position }} />}
+      {/* Overlay gradiente para legibilidade do texto */}
+      {hasPhoto&&<div style={{ position:"absolute",inset:0,background:"linear-gradient(to right,rgba(0,0,0,.82) 0%,rgba(0,0,0,.7) 35%,rgba(0,0,0,.35) 65%,rgba(0,0,0,.08) 100%)" }} />}
+      <div style={{ padding:"2rem 2rem 1.75rem",position:"relative",zIndex:1 }}>
         <span style={{ display:"inline-flex",padding:"3px 10px",borderRadius:99,background:"rgba(255,255,255,.18)",color:C.white,fontSize:11,fontWeight:600,letterSpacing:1.5,marginBottom:10 }}>{b.label}</span>
         <h2 style={{ margin:"0 0 6px",fontSize:24,fontWeight:800,color:C.white }}>{b.title}</h2>
         <p style={{ margin:"0 0 18px",fontSize:13,color:"rgba(255,255,255,.8)",maxWidth:300,lineHeight:1.6 }}>{b.sub}</p>
         <button onClick={onCta} style={{ padding:"9px 18px",borderRadius:10,border:"none",background:b.accent,color:C.greenDark,fontWeight:700,fontSize:13,cursor:"pointer" }}>{b.cta} →</button>
       </div>
-      {!hasPhoto && (
-        <div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>
-      )}
+      {!hasPhoto&&<div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>}
       <div style={{ position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6,zIndex:2 }}>
         {items.map((_,i)=><div key={i} onClick={()=>{ clearInterval(timer.current); go(i); }} style={{ width:i===idx?20:7,height:7,borderRadius:99,background:i===idx?"rgba(255,255,255,.95)":"rgba(255,255,255,.35)",cursor:"pointer",transition:"all .3s" }} />)}
       </div>
@@ -2040,16 +2046,27 @@ export default function App() {
               return (
                 <div key={b.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,overflow:"hidden" }}>
                   {/* Preview mini */}
-                  <div style={{ background:edit.grad||b.grad,padding:"14px 18px",position:"relative",minHeight:70 }}>
-                    <span style={{ display:"inline-flex",padding:"2px 8px",borderRadius:99,background:"rgba(255,255,255,.2)",color:"#fff",fontSize:10,fontWeight:600,letterSpacing:1 }}>{edit.label||b.label}</span>
-                    <p style={{ margin:"4px 0 2px",fontWeight:800,fontSize:15,color:"#fff" }}>{edit.title||b.title}</p>
-                    <p style={{ margin:0,fontSize:11,color:"rgba(255,255,255,.8)" }}>{edit.sub||b.sub}</p>
-                    <div style={{ position:"absolute",right:16,top:"50%",transform:"translateY(-50%)",fontSize:36,opacity:.25 }}>{edit.img||b.img}</div>
-                  </div>
+                  {(()=>{
+                    const rawPrev = edit.img!==undefined ? edit.img : (b.img||"");
+                    const pd = parseImg(rawPrev);
+                    const pHasPhoto = !!pd.url;
+                    return (
+                      <div style={{ background:edit.grad||b.grad,padding:"14px 18px",position:"relative",minHeight:70,overflow:"hidden" }}>
+                        {pHasPhoto&&<div style={{ position:"absolute",inset:0,backgroundImage:`url(${pd.url})`,backgroundSize:pd.size,backgroundPosition:pd.position }} />}
+                        {pHasPhoto&&<div style={{ position:"absolute",inset:0,background:"linear-gradient(to right,rgba(0,0,0,.8) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,.15) 100%)" }} />}
+                        <div style={{ position:"relative",zIndex:1 }}>
+                          <span style={{ display:"inline-flex",padding:"2px 8px",borderRadius:99,background:"rgba(255,255,255,.2)",color:"#fff",fontSize:10,fontWeight:600,letterSpacing:1 }}>{edit.label||b.label}</span>
+                          <p style={{ margin:"4px 0 2px",fontWeight:800,fontSize:15,color:"#fff" }}>{edit.title||b.title}</p>
+                          <p style={{ margin:0,fontSize:11,color:"rgba(255,255,255,.8)" }}>{edit.sub||b.sub}</p>
+                        </div>
+                        {!pHasPhoto&&<div style={{ position:"absolute",right:16,top:"50%",transform:"translateY(-50%)",fontSize:36,opacity:.25 }}>{edit.img||b.img}</div>}
+                      </div>
+                    );
+                  })()}
                   {/* Campos */}
                   <div style={{ padding:"14px 16px",display:"flex",flexDirection:"column",gap:10 }}>
                     <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-                      {[["Label (badge)","label"],["Emoji","img"],["Título","title"],["Botão (CTA)","cta"]].map(([l,k])=>(
+                      {[["Label (badge)","label"],["Título","title"],["Botão (CTA)","cta"]].map(([l,k])=>(
                         <div key={k}>
                           <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:3 }}>{l}</label>
                           <input value={edit[k]||""} onChange={e=>setField(k,e.target.value)} style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box" }} />
@@ -2060,6 +2077,56 @@ export default function App() {
                       <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:3 }}>Subtítulo</label>
                       <input value={edit.sub||""} onChange={e=>setField("sub",e.target.value)} style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box" }} />
                     </div>
+                    {/* Imagem / Emoji */}
+                    {(()=>{
+                      const rawImg = edit.img!==undefined ? edit.img : (b.img||"");
+                      const cur = parseImg(rawImg);
+                      const displayVal = cur.url || (!isUrl(rawImg) ? rawImg : "");
+                      const hasUrl = !!cur.url;
+                      const POSITIONS = [
+                        ["top left","↖"],["top center","↑"],["top right","↗"],
+                        ["center left","←"],["center center","○"],["center right","→"],
+                        ["bottom left","↙"],["bottom center","↓"],["bottom right","↘"],
+                      ];
+                      return (
+                        <div>
+                          <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:3 }}>Imagem (URL) ou Emoji</label>
+                          <input
+                            value={displayVal}
+                            onChange={e=>{
+                              const v = e.target.value;
+                              if(isUrl(v)) setField("img", buildImgField(v, cur.position, cur.size));
+                              else setField("img", v);
+                            }}
+                            placeholder="https://... ou emoji 🏆"
+                            style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box" }}
+                          />
+                          {hasUrl&&(
+                            <div style={{ marginTop:8,display:"flex",flexDirection:"column",gap:6 }}>
+                              <p style={{ margin:0,fontSize:11,color:C.gray400,fontWeight:600 }}>Posição da foto</p>
+                              <div style={{ display:"grid",gridTemplateColumns:"repeat(3,32px)",gap:4 }}>
+                                {POSITIONS.map(([pos,arrow])=>(
+                                  <button key={pos} onClick={()=>setField("img",buildImgField(cur.url,pos,cur.size))}
+                                    style={{ width:32,height:32,borderRadius:6,border:`2px solid ${cur.position===pos?"#14532d":C.gray200}`,background:cur.position===pos?"#dcfce7":"#fff",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                                    {arrow}
+                                  </button>
+                                ))}
+                              </div>
+                              <div style={{ display:"flex",gap:6 }}>
+                                <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"cover"))}
+                                  style={{ padding:"5px 12px",borderRadius:8,border:`2px solid ${cur.size==="cover"?"#14532d":C.gray200}`,background:cur.size==="cover"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                                  Cobrir
+                                </button>
+                                <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"contain"))}
+                                  style={{ padding:"5px 12px",borderRadius:8,border:`2px solid ${cur.size==="contain"?"#14532d":C.gray200}`,background:cur.size==="contain"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                                  Conter
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div>
                       <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:6 }}>Tema de cor</label>
                       <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
