@@ -238,13 +238,15 @@ function EmptyState({ emoji, title, sub, action, onAction }) {
 
 /* ── BANNER ── */
 function BannerCarousel({ onCta, banners }) {
-  const items = (banners && banners.length > 0) ? banners : BANNERS_DEFAULT;
+  const all = (banners && banners.length > 0) ? banners : BANNERS_DEFAULT;
+  const visible = all.filter(b => b.visible !== false);
+  const items = visible.length > 0 ? visible : BANNERS_DEFAULT;
   const [idx,setIdx] = useState(0);
   const timer = useRef(null);
   const go = i => setIdx((i+items.length)%items.length);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{ timer.current=setInterval(()=>go(idx+1),4000); return()=>clearInterval(timer.current); },[idx]);
-  const b = items[idx];
+  const b = items[idx % items.length];
   const imgData = parseImg(b.img);
   const hasPhoto = !!imgData.url;
   return (
@@ -257,7 +259,7 @@ function BannerCarousel({ onCta, banners }) {
         <span style={{ display:"inline-flex",padding:"3px 10px",borderRadius:99,background:"rgba(255,255,255,.18)",color:C.white,fontSize:11,fontWeight:600,letterSpacing:1.5,marginBottom:10 }}>{b.label}</span>
         <h2 style={{ margin:"0 0 6px",fontSize:24,fontWeight:800,color:C.white }}>{b.title}</h2>
         <p style={{ margin:"0 0 18px",fontSize:13,color:"rgba(255,255,255,.8)",maxWidth:300,lineHeight:1.6 }}>{b.sub}</p>
-        <button onClick={onCta} style={{ padding:"9px 18px",borderRadius:10,border:"none",background:b.accent,color:C.greenDark,fontWeight:700,fontSize:13,cursor:"pointer" }}>{b.cta} →</button>
+        <button onClick={()=>{ const d=b.link||"catalog"; isUrl(d)?window.open(d,"_blank"):onCta(d); }} style={{ padding:"9px 18px",borderRadius:10,border:"none",background:b.accent,color:C.greenDark,fontWeight:700,fontSize:13,cursor:"pointer" }}>{b.cta} →</button>
       </div>
       {!hasPhoto&&<div style={{ position:"absolute",right:24,top:"50%",transform:"translateY(-50%)",fontSize:72,opacity:.2 }}>{b.img}</div>}
       <div style={{ position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6,zIndex:2 }}>
@@ -1660,7 +1662,7 @@ export default function App() {
     <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
       <NavBar />
       <TrustBar />
-      <BannerCarousel onCta={()=>navigate("catalog")} banners={banners} />
+      <BannerCarousel onCta={navigate} banners={banners} />
       <CategoryTiles onNavigate={navigate} setFilters={setFilters} />
 
       {shirtsLoading&&<div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12,marginBottom:30 }}>{[...Array(4)].map((_,i)=><SkeletonCard key={i} />)}</div>}
@@ -2175,6 +2177,48 @@ export default function App() {
                         ))}
                       </div>
                     </div>
+                    {/* Destino do botão CTA */}
+                    {(()=>{
+                      const curLink = edit.link!==undefined ? edit.link : (b.link||"catalog");
+                      const presets = [["catalog","🗂 Catálogo"],["sellers","👥 Vendedores"],["home","🏠 Home"],["addProduct","➕ Anunciar"]];
+                      const isPreset = presets.some(([v])=>v===curLink);
+                      return (
+                        <div>
+                          <label style={{ fontSize:11,color:C.gray400,display:"block",marginBottom:6 }}>Destino do botão "{edit.cta||b.cta}"</label>
+                          <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:6 }}>
+                            {presets.map(([val,label])=>(
+                              <button key={val} onClick={()=>setField("link",val)}
+                                style={{ padding:"5px 11px",borderRadius:8,border:`2px solid ${curLink===val?"#14532d":C.gray200}`,background:curLink===val?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            value={curLink}
+                            onChange={e=>setField("link",e.target.value)}
+                            placeholder="catalog · sellers · home · https://site.com"
+                            style={{ width:"100%",padding:"7px 10px",border:`1px solid ${isPreset?C.gray200:"#14532d"}`,borderRadius:8,fontSize:12,boxSizing:"border-box",color:C.gray700,background:isPreset?"#f9fafb":"#fff" }}
+                          />
+                          <p style={{ margin:"3px 0 0",fontSize:10,color:C.gray400 }}>Clique num atalho acima ou escreva um link personalizado (https://...)</p>
+                        </div>
+                      );
+                    })()}
+                    {/* Visibilidade na home */}
+                    {(()=>{
+                      const isVisible = edit.visible!==undefined ? edit.visible : b.visible!==false;
+                      return (
+                        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"12px 14px",background:isVisible?"#f0fdf4":"#fef2f2",borderRadius:10,border:`1px solid ${isVisible?"#d1fae5":"#fecaca"}` }}>
+                          <div>
+                            <p style={{ margin:0,fontSize:12,fontWeight:700,color:isVisible?"#166534":"#991b1b" }}>{isVisible?"Visível na home":"Oculto na home"}</p>
+                            <p style={{ margin:0,fontSize:11,color:isVisible?"#4ade80":"#f87171",marginTop:1 }}>{isVisible?"Este banner aparece para todos os visitantes.":"Este banner está desativado e não aparece na home."}</p>
+                          </div>
+                          <button onClick={()=>setField("visible",!isVisible)}
+                            style={{ width:46,height:26,borderRadius:99,border:"none",cursor:"pointer",background:isVisible?"#16a34a":"#d1d5db",position:"relative",transition:"background .25s",flexShrink:0,padding:0 }}>
+                            <div style={{ position:"absolute",top:3,left:isVisible?23:3,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .25s",boxShadow:"0 1px 3px rgba(0,0,0,.3)" }} />
+                          </button>
+                        </div>
+                      );
+                    })()}
                     <button onClick={()=>handleSaveBanner(b.id)} disabled={bannerSaving===b.id} style={{ padding:"9px 0",border:"none",borderRadius:10,background:C.green,color:C.white,fontWeight:600,fontSize:13,cursor:"pointer",opacity:bannerSaving===b.id?.7:1 }}>
                       {bannerSaving===b.id?"Salvando...":"💾 Salvar banner"}
                     </button>
