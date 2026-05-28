@@ -37,6 +37,12 @@ const BR_STATES  = [
   {sigla:"RO",nome:"Rondônia"},{sigla:"RR",nome:"Roraima"},{sigla:"SC",nome:"Santa Catarina"},
   {sigla:"SP",nome:"São Paulo"},{sigla:"SE",nome:"Sergipe"},{sigla:"TO",nome:"Tocantins"},
 ];
+const PROFANITY = ["porra","merda","caralho","fdp","foda","foder","viado","buceta","cuzão","puta","vagabunda","arrombado","babaca","imbecil","desgraça","otário","corno","piranha","safado","safada","prostituta","idiota","retardado","burro","lixo","escória","raça","vsf","vtnc","tnc","krl","pqp","qrl"];
+function hasProfanity(text) {
+  if(!text) return false;
+  const lower = text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  return PROFANITY.some(w => lower.includes(w.normalize("NFD").replace(/[̀-ͯ]/g,"")));
+}
 const BANNERS_DEFAULT = [
   { id:1,label:"LANÇAMENTO",title:"Camisetas Lendárias",sub:"Peças raras dos anos 80 e 90 com procedência garantida",cta:"Explorar coleção",grad:"linear-gradient(120deg,#14532d 0%,#166534 60%,#15803d 100%)",accent:"#4ade80",img:"👑" },
   { id:2,label:"PROMOÇÃO",title:"Até 40% OFF",sub:"Colecionadores verificados com descontos exclusivos esta semana",cta:"Ver ofertas",grad:"linear-gradient(120deg,#1e3a5f 0%,#1d4ed8 60%,#2563eb 100%)",accent:"#93c5fd",img:"🏷️" },
@@ -482,6 +488,12 @@ export default function App() {
   const [reviewForm, setReviewForm]       = useState({ rating:5, comment:"" });
   const [reviewLoading, setReviewLoading] = useState(false);
   const [follows, setFollows]             = useState([]);
+  const [shirtQuestions, setShirtQuestions] = useState([]);
+  const [questionText, setQuestionText]     = useState("");
+  const [questionLoading, setQuestionLoading] = useState(false);
+  const [answerTexts, setAnswerTexts]       = useState({});
+  const [answerLoading, setAnswerLoading]   = useState(null);
+  const [adminQuestions, setAdminQuestions] = useState([]);
 
   // ref para o botão Voltar do navegador (acesso sem deps no event listener)
 
@@ -831,6 +843,56 @@ export default function App() {
     }
   }
 
+  async function loadAdminQuestions() {
+    const { data } = await supabase.from("questions")
+      .select("*, asker:profiles!asker_id(name), shirt:shirts(team,edition)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setAdminQuestions(data || []);
+  }
+
+  async function loadQuestions(shirtId) {
+    const { data } = await supabase.from("questions")
+      .select("*, asker:profiles!asker_id(name,avatar_url)")
+      .eq("shirt_id", shirtId)
+      .order("created_at", { ascending: true });
+    setShirtQuestions(data || []);
+  }
+
+  async function handleAskQuestion(shirtId, sellerId) {
+    if(!user){ setShowAuth(true); setAuthStep("login"); setAuthError(""); return; }
+    const text = questionText.trim();
+    if(!text) return;
+    if(hasProfanity(text)){ addToast("Sua pergunta contém linguagem inadequada.","error"); return; }
+    setQuestionLoading(true);
+    const { error } = await supabase.from("questions").insert({
+      shirt_id: shirtId, asker_id: user.id, seller_id: sellerId, question: text,
+    });
+    if(!error){ await loadQuestions(shirtId); setQuestionText(""); addToast("Pergunta enviada!"); }
+    else addToast("Erro ao enviar pergunta","error");
+    setQuestionLoading(false);
+  }
+
+  async function handleAnswerQuestion(questionId, shirtId) {
+    const text = (answerTexts[questionId]||"").trim();
+    if(!text) return;
+    if(hasProfanity(text)){ addToast("Sua resposta contém linguagem inadequada.","error"); return; }
+    setAnswerLoading(questionId);
+    const { error } = await supabase.from("questions")
+      .update({ answer: text, answered_at: new Date().toISOString() })
+      .eq("id", questionId);
+    if(!error){ await loadQuestions(shirtId); setAnswerTexts(t=>({ ...t, [questionId]:"" })); addToast("Resposta publicada!"); }
+    else addToast("Erro ao responder","error");
+    setAnswerLoading(null);
+  }
+
+  async function handleDeleteQuestion(questionId, shirtId) {
+    if(!window.confirm("Remover esta pergunta?")) return;
+    const { error } = await supabase.from("questions").delete().eq("id", questionId);
+    if(!error){ await loadQuestions(shirtId); addToast("Pergunta removida.","info"); }
+    else addToast("Erro ao remover pergunta","error");
+  }
+
   function addToast(message, type="success") {
     const id = Date.now();
     setToasts(ts=>[...ts,{ id,message,type }]);
@@ -841,8 +903,12 @@ export default function App() {
     window.history.pushState(null, "", `#item-${id}`);
     setSelectedId(id);
     setPhotoIdx(0);
+    setShirtQuestions([]);
+    setQuestionText("");
+    setAnswerTexts({});
     const { data } = await supabase.from("shirts").select("*, profiles(*)").eq("id",id).single();
     setSelectedShirt(data);
+    loadQuestions(id);
   }
 
   async function openSeller(sellerId) {
@@ -1282,6 +1348,95 @@ export default function App() {
                   </div>
                 </div>
               )}
+
+              {/* ── Q&A ── */}
+              <div style={{ marginTop:28 }}>
+                <SectionHead icon="❓" sub="dúvidas" title={`${shirtQuestions.length} pergunta${shirtQuestions.length!==1?"s":""}`} />
+
+                {/* Formulário de pergunta */}
+                {user && user.id !== selectedShirt.seller_id && (
+                  <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:14,padding:16,marginBottom:16 }}>
+                    <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:14,color:C.gray900 }}>Fazer uma pergunta</p>
+                    <textarea
+                      value={questionText}
+                      onChange={e=>setQuestionText(e.target.value)}
+                      placeholder="Tem alguma dúvida sobre esta camiseta?"
+                      rows={2}
+                      maxLength={400}
+                      style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }}
+                    />
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8 }}>
+                      <span style={{ fontSize:11,color:C.gray400 }}>{questionText.length}/400</span>
+                      <button
+                        onClick={()=>handleAskQuestion(selectedShirt.id, selectedShirt.seller_id)}
+                        disabled={questionLoading||!questionText.trim()}
+                        style={{ padding:"8px 18px",border:"none",borderRadius:10,background:C.green,color:C.white,fontWeight:600,fontSize:13,cursor:"pointer",opacity:(!questionText.trim()||questionLoading)?.6:1 }}
+                      >{questionLoading?"Enviando...":"Perguntar"}</button>
+                    </div>
+                  </div>
+                )}
+
+                {!user&&(
+                  <p style={{ fontSize:13,color:C.gray400,marginBottom:12 }}>
+                    <span onClick={()=>{setShowAuth(true);setAuthStep("login");setAuthError("");}} style={{ color:C.green,cursor:"pointer",fontWeight:600 }}>Entre</span> para fazer uma pergunta.
+                  </p>
+                )}
+
+                {/* Lista de perguntas */}
+                {shirtQuestions.length===0
+                  ?<p style={{ color:C.gray400,fontSize:14 }}>Nenhuma pergunta ainda. Seja o primeiro!</p>
+                  :<div style={{ display:"flex",flexDirection:"column",gap:12 }}>
+                    {shirtQuestions.map(q=>(
+                      <div key={q.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,overflow:"hidden" }}>
+                        {/* Pergunta */}
+                        <div style={{ padding:"12px 14px",display:"flex",gap:10,alignItems:"flex-start" }}>
+                          <Avatar name={q.asker?.name||"?"} size={32} src={q.asker?.avatar_url} />
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3 }}>
+                              <span style={{ fontWeight:600,fontSize:13,color:C.gray900 }}>{q.asker?.name||"Usuário"}</span>
+                              <span style={{ fontSize:11,color:C.gray400 }}>{new Date(q.created_at).toLocaleDateString("pt-BR")}</span>
+                            </div>
+                            <p style={{ margin:0,fontSize:14,color:C.gray600,lineHeight:1.5 }}>{q.question}</p>
+                          </div>
+                          {(profile?.role==="admin"||user?.id===q.asker_id||user?.id===selectedShirt.seller_id)&&(
+                            <button onClick={()=>handleDeleteQuestion(q.id,selectedShirt.id)} title="Remover" style={{ background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:16,padding:"0 0 0 4px",flexShrink:0,lineHeight:1 }}>🗑️</button>
+                          )}
+                        </div>
+
+                        {/* Resposta existente */}
+                        {q.answer&&(
+                          <div style={{ padding:"10px 14px",background:C.greenLight,borderTop:`1px solid ${C.gray200}`,display:"flex",gap:10,alignItems:"flex-start" }}>
+                            <span style={{ fontSize:18,flexShrink:0 }}>💬</span>
+                            <div>
+                              <span style={{ fontWeight:600,fontSize:12,color:C.greenDark }}>Vendedor respondeu</span>
+                              <p style={{ margin:"2px 0 0",fontSize:14,color:C.greenDark,lineHeight:1.5 }}>{q.answer}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Formulário de resposta para o vendedor */}
+                        {user?.id===selectedShirt.seller_id&&!q.answer&&(
+                          <div style={{ padding:"10px 14px",background:C.gray50,borderTop:`1px solid ${C.gray200}` }}>
+                            <textarea
+                              value={answerTexts[q.id]||""}
+                              onChange={e=>setAnswerTexts(t=>({...t,[q.id]:e.target.value}))}
+                              placeholder="Escreva sua resposta..."
+                              rows={2}
+                              maxLength={600}
+                              style={{ width:"100%",padding:"8px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box",resize:"none" }}
+                            />
+                            <button
+                              onClick={()=>handleAnswerQuestion(q.id,selectedShirt.id)}
+                              disabled={answerLoading===q.id||!(answerTexts[q.id]||"").trim()}
+                              style={{ marginTop:6,padding:"7px 16px",border:"none",borderRadius:8,background:C.green,color:C.white,fontWeight:600,fontSize:12,cursor:"pointer",opacity:answerLoading===q.id?.7:1 }}
+                            >{answerLoading===q.id?"Respondendo...":"Responder"}</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                }
+              </div>
             </>
           );
         })()}
@@ -1594,9 +1749,9 @@ export default function App() {
         <SectionHead icon="⚙️" sub="administração" title="Painel de Controle" />
 
         {/* Tabs */}
-        <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8 }}>
-          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["banners","🖼️ Banners"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setAdminTab(v)} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
+        <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8,flexWrap:"wrap" }}>
+          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["banners","🖼️ Banners"],["questions","❓ Perguntas"]].map(([v,l])=>(
+            <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); }} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
           ))}
         </div>
 
@@ -1700,6 +1855,33 @@ export default function App() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Tab: Perguntas */}
+        {adminTab==="questions"&&(
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {adminQuestions.length===0&&<p style={{ color:C.gray400,fontSize:14 }}>Nenhuma pergunta ainda.</p>}
+            {adminQuestions.map(q=>(
+              <div key={q.id} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,padding:"12px 16px" }}>
+                <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10 }}>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ margin:"0 0 2px",fontWeight:600,fontSize:13,color:C.gray900 }}>
+                      {q.shirt?.team||"—"}{q.shirt?.edition?` · ${q.shirt.edition}`:""}
+                    </p>
+                    <p style={{ margin:"0 0 6px",fontSize:12,color:C.gray400 }}>
+                      por <b>{q.asker?.name||"?"}</b> · {new Date(q.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                    <p style={{ margin:"0 0 4px",fontSize:14,color:C.gray600 }}>❓ {q.question}</p>
+                    {q.answer&&<p style={{ margin:0,fontSize:13,color:C.greenDark,background:C.greenLight,borderRadius:8,padding:"6px 10px" }}>💬 {q.answer}</p>}
+                  </div>
+                  <button
+                    onClick={async()=>{ if(!window.confirm("Remover esta pergunta?")) return; await supabase.from("questions").delete().eq("id",q.id); loadAdminQuestions(); addToast("Pergunta removida.","info"); }}
+                    style={{ flexShrink:0,padding:"6px 12px",borderRadius:8,border:`1px solid ${C.red}`,background:C.redLight,color:C.red,fontSize:12,fontWeight:600,cursor:"pointer" }}
+                  >🗑️ Remover</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
