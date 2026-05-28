@@ -39,6 +39,16 @@ const BR_STATES  = [
 ];
 const BOOST_PRICE = "R$ 9,90";
 const BOOST_DAYS  = 7;
+
+/* ── CATEGORY TILES ── */
+const CATEGORY_TILES = [
+  { icon:"🇧🇷", label:"Times Nacionais",   color:"#15803d", bg:"#f0fdf4", filters:{ type:"times",    region:"nacional" } },
+  { icon:"🌍",  label:"Times Europeus",    color:"#1d4ed8", bg:"#eff6ff", filters:{ type:"times",    region:"europa"   } },
+  { icon:"🌎",  label:"América do Sul",    color:"#b45309", bg:"#fffbeb", filters:{ type:"times",    region:"america_sul" } },
+  { icon:"🏆",  label:"Seleções",          color:"#7c3aed", bg:"#f5f3ff", filters:{ type:"selecoes", region:null       } },
+  { icon:"👕",  label:"Modelo Jogador",    color:"#0891b2", bg:"#ecfeff", filters:{ model:"Modelo Jogador"             } },
+  { icon:"🏅",  label:"Utilizado em Jogo", color:"#be123c", bg:"#fff1f2", filters:{ model:"Utilizado em Jogo"          } },
+];
 function isBoosted(s) {
   return s.boosted && s.boosted_until && new Date(s.boosted_until) > new Date();
 }
@@ -442,6 +452,76 @@ function ContactModal({ seller, onClose }) {
           </p>
         )}
         <button onClick={onClose} style={{ width:"100%",padding:"11px 0",border:"1px solid #e5e7eb",borderRadius:12,background:"#fff",cursor:"pointer",fontSize:14,color:"#4b5563",marginTop:4 }}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── TRUST BAR ── */
+function TrustBar() {
+  const isMobile = useMobile();
+  const items = ["✅ Vendedores verificados","⭐ Avaliações reais","🔒 Compra 100% segura","💬 Suporte via WhatsApp"];
+  return (
+    <div style={{ background:"#f0fdf4",border:"1px solid #d1fae5",borderRadius:10,padding:"8px 14px",marginBottom:20 }}>
+      <div style={{ display:"flex",justifyContent:"center",gap:isMobile?14:32,flexWrap:"wrap" }}>
+        {(isMobile?items.slice(0,2):items).map(t=>(
+          <span key={t} style={{ fontSize:12,fontWeight:500,color:"#166534" }}>{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── CATEGORY TILES ── */
+function CategoryTiles({ onNavigate, setFilters }) {
+  const isMobile = useMobile();
+  return (
+    <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(6,1fr)",gap:10,marginBottom:28 }}>
+      {CATEGORY_TILES.map(tile=>(
+        <div key={tile.label}
+          onClick={()=>{ setFilters(f=>({...f,...tile.filters})); onNavigate("catalog"); }}
+          style={{ background:tile.bg,border:`1.5px solid ${tile.color}33`,borderRadius:14,padding:isMobile?"10px 6px":"16px 8px",textAlign:"center",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:5 }}>
+          <span style={{ fontSize:isMobile?22:28 }}>{tile.icon}</span>
+          <span style={{ fontSize:10,fontWeight:600,color:tile.color,lineHeight:1.3 }}>{tile.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── FOOTER ── */
+function Footer({ onNavigate }) {
+  return (
+    <div style={{ marginTop:48,borderTop:"1px solid #e5e7eb",paddingTop:32,paddingBottom:20 }}>
+      <div style={{ display:"flex",flexWrap:"wrap",gap:32,justifyContent:"space-between",marginBottom:20 }}>
+        <div>
+          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+            <div style={{ width:28,height:28,borderRadius:7,background:"#14532d",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>⚽</div>
+            <span style={{ fontWeight:800,fontSize:15,color:"#111827" }}>FutShirt Market</span>
+          </div>
+          <p style={{ margin:0,fontSize:12,color:"#9ca3af",maxWidth:200,lineHeight:1.6 }}>O mercado de camisetas de futebol mais completo do Brasil.</p>
+        </div>
+        <div>
+          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Navegar</p>
+          {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
+            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>{l}</span></div>
+          ))}
+        </div>
+        <div>
+          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Vendedores</p>
+          <div><span onClick={()=>onNavigate("sellers")} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>Ver todos os vendedores</span></div>
+          <div><span onClick={()=>onNavigate("addProduct")} style={{ fontSize:13,color:"#16a34a",cursor:"pointer",display:"block",lineHeight:2,fontWeight:600 }}>+ Anunciar camiseta</span></div>
+        </div>
+        <div>
+          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Confiança</p>
+          {["Vendedores verificados","Avaliações reais","Compra 100% segura","Suporte via WhatsApp"].map(t=>(
+            <div key={t}><span style={{ fontSize:12,color:"#6b7280",lineHeight:2,display:"block" }}>{t}</span></div>
+          ))}
+        </div>
+      </div>
+      <div style={{ borderTop:"1px solid #f3f4f6",paddingTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8 }}>
+        <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>© 2025 FutShirt Market — Todos os direitos reservados.</p>
+        <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>Feito para colecionadores de camisetas</p>
       </div>
     </div>
   );
@@ -1161,7 +1241,7 @@ export default function App() {
   // ── ADD PRODUCT ──
   if(page==="addProduct") {
     if(user && !user.email_confirmed_at) return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:760,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
         <div style={{ textAlign:"center",padding:"3rem 1rem" }}>
           <div style={{ fontSize:56,marginBottom:14 }}>📧</div>
@@ -1178,7 +1258,7 @@ export default function App() {
       </div>
     );
     if(formDone) return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:760,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
         <div style={{ textAlign:"center",padding:"3rem 1rem" }}>
           <div style={{ fontSize:56,marginBottom:12 }}>🎉</div>
@@ -1191,7 +1271,7 @@ export default function App() {
       </div>
     );
     return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:760,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
         <div style={{ display:"flex",alignItems:"center",gap:10,padding:"0.5rem 0 1.5rem" }}>
           <button onClick={()=>{ setPage(editingShirtId?"sellers":"home"); setEditingShirtId(null); setForm(emptyForm); setFormStep(1); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer" }}>←</button>
@@ -1265,8 +1345,9 @@ export default function App() {
   if(sellerSlug) {
     const sellerShirts = shirts.filter(sh=>sh.seller_id===sellerSlug);
     return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
+        <TrustBar />
         <button onClick={()=>{ setSellerSlug(null); setSellerProfile(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"0.25rem 0 1rem" }}>← Voltar</button>
         {!sellerProfile ? <Spinner /> : <>
           <div style={{ background:`linear-gradient(120deg,${C.greenDark},${C.green})`,borderRadius:18,height:90 }} />
@@ -1294,7 +1375,7 @@ export default function App() {
           </div>
           <SectionHead icon="🏷️" sub="anúncios" title={`${sellerShirts.length} itens à venda`} />
           {sellerShirts.length===0&&<p style={{ color:C.gray400,fontSize:14 }}>Nenhum anúncio publicado ainda.</p>}
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(148px,1fr))",gap:12 }}>
+          <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(148px,1fr))":"repeat(auto-fill,minmax(210px,1fr))",gap:12 }}>
             {sellerShirts.map(sh=>(
               <div key={sh.id} style={{ display:"flex",flexDirection:"column",gap:6 }}>
                 <ShirtCard s={sh} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={id=>{ setSellerSlug(null); openShirt(id); }} />
@@ -1354,6 +1435,7 @@ export default function App() {
             )}
           </div>
         </>}
+        <Footer onNavigate={navigate} />
         {contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />}
         {authModal}
         {toastEl}
@@ -1364,8 +1446,9 @@ export default function App() {
   // ── ITEM DETAIL ──
   if(selectedId) {
     return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
+        <TrustBar />
         <button onClick={()=>{ setSelectedId(null); setSelectedShirt(null); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:14,cursor:"pointer",padding:"0.25rem 0 1rem" }}>← Voltar</button>
         {!selectedShirt ? <Spinner /> : (()=>{
           const s = selectedShirt;
@@ -1428,7 +1511,7 @@ export default function App() {
               {fromSeller.length>0&&(
                 <div style={{ marginTop:28 }}>
                   <SectionHead icon="🏷️" sub="mesmo vendedor" title="Mais deste vendedor" />
-                  <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(148px,1fr))",gap:12 }}>
+                  <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(148px,1fr))":"repeat(auto-fill,minmax(210px,1fr))",gap:12 }}>
                     {fromSeller.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
                   </div>
                 </div>
@@ -1436,7 +1519,7 @@ export default function App() {
               {similar.length>0&&(
                 <div style={{ marginTop:28 }}>
                   <SectionHead icon="🔍" sub="catálogo" title="Similares no catálogo" />
-                  <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(148px,1fr))",gap:12 }}>
+                  <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(148px,1fr))":"repeat(auto-fill,minmax(210px,1fr))",gap:12 }}>
                     {similar.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
                   </div>
                 </div>
@@ -1534,6 +1617,7 @@ export default function App() {
           );
         })()}
 
+        <Footer onNavigate={navigate} />
         {lightbox && (
           <div onClick={() => setLightbox(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.85)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", cursor:"zoom-out" }}>
             <img src={lightbox} alt="" style={{ maxWidth:"95vw", maxHeight:"95vh", objectFit:"contain", borderRadius:12 }} />
@@ -1548,36 +1632,38 @@ export default function App() {
   }
   // ── HOME ──
   if(page==="home") return (
-    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
       <NavBar />
+      <TrustBar />
       <BannerCarousel onCta={()=>navigate("catalog")} banners={banners} />
+      <CategoryTiles onNavigate={navigate} setFilters={setFilters} />
 
-      {shirtsLoading&&<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:30 }}>{[...Array(4)].map((_,i)=><SkeletonCard key={i} />)}</div>}
+      {shirtsLoading&&<div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12,marginBottom:30 }}>{[...Array(4)].map((_,i)=><SkeletonCard key={i} />)}</div>}
 
       {!shirtsLoading&&available.filter(isBoosted).length>0&&<div style={{ marginBottom:30 }}>
         <SectionHead icon="⚡" sub="anúncios impulsionados" title="Em Destaque" />
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+        <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12 }}>
           {available.filter(isBoosted).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
 
       {!shirtsLoading&&promos.length>0&&<div style={{ marginBottom:30 }}>
-        <SectionHead icon="🏷️" sub="ofertas especiais" title="Em promoção" action="Ver todas" onAction={()=>navigate("catalog")} />
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+        <SectionHead icon="🏷️" sub="seleção especial" title="Melhores Ofertas da Semana" action="Ver todas" onAction={()=>navigate("catalog")} />
+        <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12 }}>
           {promos.slice(0,4).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
 
       {!shirtsLoading&&topRated.length>0&&<div style={{ marginBottom:30 }}>
-        <SectionHead icon="⭐" sub="melhores avaliadas" title="Mais bem avaliadas" action="Ver catálogo" onAction={()=>navigate("catalog")} />
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+        <SectionHead icon="⭐" sub="avaliados pela comunidade" title="Os Favoritos" action="Ver catálogo" onAction={()=>navigate("catalog")} />
+        <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12 }}>
           {topRated.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
 
       {!shirtsLoading&&recent.length>0&&<div style={{ marginBottom:30 }}>
-        <SectionHead icon="🆕" sub="recém adicionadas" title="Novidades" action="Ver todas" onAction={()=>navigate("catalog")} />
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+        <SectionHead icon="🆕" sub="acabaram de chegar" title="Chegaram Agora" action="Ver todas" onAction={()=>navigate("catalog")} />
+        <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:12 }}>
           {recent.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
         </div>
       </div>}
@@ -1591,6 +1677,7 @@ export default function App() {
           onAction={()=>requireAuth(()=>navigate("addProduct"))}
         />
       )}
+      <Footer onNavigate={navigate} />
       {authModal}
       {toastEl}
     </div>
@@ -1598,33 +1685,43 @@ export default function App() {
 
   // ── CATALOG ──
   if(page==="catalog") return (
-    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
       <NavBar />
-      <FilterBar filters={filters} setFilters={setFilters} search={search} setSearch={setSearch} />
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
-        <p style={{ margin:0,fontSize:13,color:C.gray400 }}>{filtered.length} resultado{filtered.length!==1?"s":""}</p>
-        <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{ padding:"6px 12px",border:`1px solid ${C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer" }}>
-          {[["relevancia","Relevância"],["preco_asc","Menor preço"],["preco_desc","Maior preço"],["avaliacao","Melhor avaliação"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
-        </select>
-      </div>
-      {shirtsLoading ? (
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>
-          {[...Array(6)].map((_,i)=><SkeletonCard key={i} />)}
+      <TrustBar />
+      {isMobile ? (
+        <>
+          <FilterBar filters={filters} setFilters={setFilters} search={search} setSearch={setSearch} />
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
+            <p style={{ margin:0,fontSize:13,color:C.gray400 }}>{filtered.length} resultado{filtered.length!==1?"s":""}</p>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{ padding:"6px 12px",border:`1px solid ${C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer" }}>
+              {[["relevancia","Relevância"],["preco_asc","Menor preço"],["preco_desc","Maior preço"],["avaliacao","Melhor avaliação"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          {shirtsLoading
+            ? <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{[...Array(6)].map((_,i)=><SkeletonCard key={i} />)}</div>
+            : <><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>{filtered.length===0&&<EmptyState emoji="🔍" title="Nenhuma camiseta encontrada" sub="Tente outros filtros ou limpe a busca para ver todos os itens." action="Limpar filtros" onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }} />}</>
+          }
+        </>
+      ) : (
+        <div style={{ display:"flex",gap:24,alignItems:"flex-start" }}>
+          <div style={{ width:280,flexShrink:0,position:"sticky",top:16,alignSelf:"flex-start" }}>
+            <FilterBar filters={filters} setFilters={setFilters} search={search} setSearch={setSearch} />
+          </div>
+          <div style={{ flex:1,minWidth:0 }}>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
+              <p style={{ margin:0,fontSize:13,color:C.gray400 }}>{filtered.length} resultado{filtered.length!==1?"s":""}</p>
+              <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{ padding:"6px 12px",border:`1px solid ${C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer" }}>
+                {[["relevancia","Relevância"],["preco_asc","Menor preço"],["preco_desc","Maior preço"],["avaliacao","Melhor avaliação"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            {shirtsLoading
+              ? <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14 }}>{[...Array(6)].map((_,i)=><SkeletonCard key={i} />)}</div>
+              : <><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14 }}>{filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>{filtered.length===0&&<EmptyState emoji="🔍" title="Nenhuma camiseta encontrada" sub="Tente outros filtros ou limpe a busca para ver todos os itens." action="Limpar filtros" onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }} />}</>
+            }
+          </div>
         </div>
-      ) : <>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>
-          {filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
-        </div>
-        {filtered.length===0&&(
-          <EmptyState
-            emoji="🔍"
-            title="Nenhuma camiseta encontrada"
-            sub="Tente outros filtros ou limpe a busca para ver todos os itens."
-            action="Limpar filtros"
-            onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }}
-          />
-        )}
-      </>}
+      )}
+      <Footer onNavigate={navigate} />
       {authModal}
       {toastEl}
     </div>
@@ -1639,8 +1736,9 @@ export default function App() {
       return (sv.name||"").toLowerCase().includes(q)||(sv.location||"").toLowerCase().includes(q);
     });
     return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
+        <TrustBar />
         <SectionHead icon="👥" sub="comunidade" title="Vendedores" />
         {/* Campo de busca de vendedores */}
         <div style={{ position:"relative",marginBottom:16 }}>
@@ -1694,6 +1792,7 @@ export default function App() {
             })}
           </div>
         )}
+        <Footer onNavigate={navigate} />
         {authModal}
         {toastEl}
       </div>
@@ -1702,7 +1801,7 @@ export default function App() {
 
   // ── WISHLIST ──
   if(page==="wishlist") return (
-    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
       <NavBar />
       <SectionHead icon="♥" sub="minha lista" title="Lista de desejos" />
       {wishlist.length===0
@@ -1713,8 +1812,9 @@ export default function App() {
             action="Explorar catálogo →"
             onAction={()=>setPage("catalog")}
           />
-        :<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{shirts.filter(s=>wishlist.includes(s.id)).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>
+        :<div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:14 }}>{shirts.filter(s=>wishlist.includes(s.id)).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>
       }
+      <Footer onNavigate={navigate} />
       {authModal}
       {toastEl}
     </div>
@@ -1725,7 +1825,7 @@ export default function App() {
     const myShirts = shirts.filter(s=>s.seller_id===user?.id);
     const emailVerified = !!user?.email_confirmed_at;
     return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:560,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:760,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
         <h2 style={{ margin:"0 0 1rem",fontWeight:700,fontSize:18 }}>Meu Perfil</h2>
 
@@ -1851,7 +1951,7 @@ export default function App() {
   if(page==="admin"&&profile?.role==="admin") {
     const allShirts = shirts; // sem filtro de bloqueio para o admin ver tudo
     return (
-      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:680,margin:"0 auto",padding:"0 0 3rem" }}>
+      <div style={{ fontFamily:"system-ui,sans-serif",maxWidth:1200,margin:"0 auto",padding:"0 0 4rem" }}>
         <NavBar />
         <SectionHead icon="⚙️" sub="administração" title="Painel de Controle" />
 
