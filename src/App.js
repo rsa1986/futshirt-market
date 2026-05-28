@@ -388,7 +388,7 @@ export default function App() {
   const [editingShirtId,setEditingShirtId] = useState(null);
   const isMobile = useMobile();
   const [toasts,setToasts]             = useState([]);
-  const [contactModal,setContactModal] = useState(null); // null | perfil do vendedor
+  const [contactModal,setContactModal] = useState(null);
   const [profileForm,setProfileForm]   = useState({ name:"",location:"",bio:"",phone:"" });
   const [formErrors,setFormErrors]     = useState({});
   const [profileSaving,setProfileSaving] = useState(false);
@@ -409,7 +409,6 @@ export default function App() {
   const [follows, setFollows]             = useState([]);
 
   // ref para o botão Voltar do navegador (acesso sem deps no event listener)
-  const navRef = useRef({ page:"home", sellerSlug:null, selectedId:null });
 
   // ── load session ──
   useEffect(()=>{
@@ -804,7 +803,7 @@ export default function App() {
   const filtered  = applyFilters(shirts);
   const available = shirts.filter(s=>s.status!=="vendido"&&!s.profiles?.blocked);
   const promos    = available.filter(s=>s.price_old);
-  const featured  = available.filter(s=>s.featured&&!s.price_old);
+  // featured removido — home agora usa seções dinâmicas (recent, topRated, promos)
   const recent    = available.slice(0,6);
   const topRated  = available.filter(s=>(s.rating||0)>=4).sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,6);
 
