@@ -347,6 +347,12 @@ function ActiveTag({ label,onRemove }) {
 }
 
 /* ── MOBILE HOOK ── */
+function maskPhone(value) {
+  const d = value.replace(/\D/g,"").slice(0,11);
+  if(d.length<=2) return d.length?`(${d}`:"";
+  if(d.length<=7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
 function useMobile(bp=640) {
   const [m,setM] = useState(()=>window.innerWidth<bp);
   useEffect(()=>{
@@ -1456,7 +1462,7 @@ export default function App() {
             {[["Nome completo","name","text"],["WhatsApp / Telefone","phone","tel"]].map(([l,k,t])=>(
               <div key={k}>
                 <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>{l}</label>
-                <input type={t} value={profileForm[k]} onChange={e=>setProfileForm(f=>({...f,[k]:e.target.value}))} placeholder={k==="phone"?"(11) 99999-9999":""} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+                <input type={t} value={profileForm[k]} onChange={e=>setProfileForm(f=>({...f,[k]:k==="phone"?maskPhone(e.target.value):e.target.value}))} placeholder={k==="phone"?"(11) 99999-9999":""} maxLength={k==="phone"?15:undefined} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
               </div>
             ))}
             <CityStatePicker stateVal={profileForm.state} cityVal={profileForm.city} onStateChange={v=>setProfileForm(f=>({...f,state:v}))} onCityChange={v=>setProfileForm(f=>({...f,city:v}))} />
