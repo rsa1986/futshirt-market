@@ -2101,26 +2101,46 @@ export default function App() {
                             placeholder="https://... ou emoji 🏆"
                             style={{ width:"100%",padding:"7px 10px",border:`1px solid ${C.gray200}`,borderRadius:8,fontSize:13,boxSizing:"border-box" }}
                           />
+                          {/* Dica de dimensões — sempre visível */}
+                          <div style={{ marginTop:6,padding:"9px 11px",background:"#f0fdf4",borderRadius:8,border:"1px solid #d1fae5" }}>
+                            <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:700,color:"#166534" }}>Tamanho ideal da foto</p>
+                            <p style={{ margin:0,fontSize:11,color:"#166534",lineHeight:1.7 }}>
+                              <strong>900×400 px</strong> (proporção ~9:4) — foto horizontal/paisagem.<br/>
+                              Fotos <strong>largas</strong> encaixam melhor; fotos verticais (retrato) ficam muito cortadas no modo Cobrir.<br/>
+                              Use uma imagem com <strong>mín. 800 px de largura</strong> para boa nitidez.
+                            </p>
+                          </div>
                           {hasUrl&&(
-                            <div style={{ marginTop:8,display:"flex",flexDirection:"column",gap:6 }}>
-                              <p style={{ margin:0,fontSize:11,color:C.gray400,fontWeight:600 }}>Posição da foto</p>
-                              <div style={{ display:"grid",gridTemplateColumns:"repeat(3,32px)",gap:4 }}>
-                                {POSITIONS.map(([pos,arrow])=>(
-                                  <button key={pos} onClick={()=>setField("img",buildImgField(cur.url,pos,cur.size))}
-                                    style={{ width:32,height:32,borderRadius:6,border:`2px solid ${cur.position===pos?"#14532d":C.gray200}`,background:cur.position===pos?"#dcfce7":"#fff",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
-                                    {arrow}
+                            <div style={{ marginTop:10,display:"flex",flexDirection:"column",gap:8,padding:"10px 12px",background:"#f9fafb",borderRadius:10,border:`1px solid ${C.gray200}` }}>
+                              {/* Tamanho */}
+                              <div>
+                                <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:700,color:C.gray700 }}>Modo de exibição</p>
+                                <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                                  <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"cover"))}
+                                    style={{ flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${cur.size==="cover"?"#14532d":C.gray200}`,background:cur.size==="cover"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",textAlign:"left",lineHeight:1.4 }}>
+                                    <span style={{ display:"block",fontWeight:700,marginBottom:1 }}>Cobrir {cur.size==="cover"&&"✓"}</span>
+                                    <span style={{ fontWeight:400,color:C.gray500 }}>Foto preenche o banner inteiro. Pode cortar as bordas.</span>
                                   </button>
-                                ))}
+                                  <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"contain"))}
+                                    style={{ flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${cur.size==="contain"?"#14532d":C.gray200}`,background:cur.size==="contain"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",textAlign:"left",lineHeight:1.4 }}>
+                                    <span style={{ display:"block",fontWeight:700,marginBottom:1 }}>Conter {cur.size==="contain"&&"✓"}</span>
+                                    <span style={{ fontWeight:400,color:C.gray500 }}>Foto inteira visível. Pode sobrar espaço nas laterais.</span>
+                                  </button>
+                                </div>
                               </div>
-                              <div style={{ display:"flex",gap:6 }}>
-                                <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"cover"))}
-                                  style={{ padding:"5px 12px",borderRadius:8,border:`2px solid ${cur.size==="cover"?"#14532d":C.gray200}`,background:cur.size==="cover"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
-                                  Cobrir
-                                </button>
-                                <button onClick={()=>setField("img",buildImgField(cur.url,cur.position,"contain"))}
-                                  style={{ padding:"5px 12px",borderRadius:8,border:`2px solid ${cur.size==="contain"?"#14532d":C.gray200}`,background:cur.size==="contain"?"#dcfce7":"#fff",fontSize:11,fontWeight:600,cursor:"pointer" }}>
-                                  Conter
-                                </button>
+                              {/* Posição */}
+                              <div>
+                                <p style={{ margin:"0 0 2px",fontSize:11,fontWeight:700,color:C.gray700 }}>Posição — qual parte da foto fica centralizada</p>
+                                <p style={{ margin:"0 0 6px",fontSize:11,color:C.gray400 }}>Útil quando a foto está sendo cortada e o sujeito principal fica fora.</p>
+                                <div style={{ display:"grid",gridTemplateColumns:"repeat(3,34px)",gap:4 }}>
+                                  {POSITIONS.map(([pos,arrow])=>(
+                                    <button key={pos} onClick={()=>setField("img",buildImgField(cur.url,pos,cur.size))}
+                                      title={pos}
+                                      style={{ width:34,height:34,borderRadius:7,border:`2px solid ${cur.position===pos?"#14532d":C.gray200}`,background:cur.position===pos?"#dcfce7":"#fff",fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                                      {arrow}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )}
