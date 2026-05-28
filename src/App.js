@@ -705,7 +705,7 @@ export default function App() {
             <button onClick={()=>{ setShowNotifs(v=>{ if(!v){ localStorage.setItem("fsm_notifs_seen",Date.now()); setNotifBadge(0); } return !v; }); }} style={{ position:"relative",background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:showNotifs?C.green:C.gray600 }}>
               🔔{notifBadge>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{notifBadge}</span>}
             </button>
-            {!isMobile&&<button onClick={()=>navigate("addProduct")} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
+            {!isMobile&&<button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
             <div onClick={()=>navigate("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
             {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
           </>:<>
@@ -721,7 +721,7 @@ export default function App() {
         {user?<>
           {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
           <button onClick={()=>navigate("portfolio")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="portfolio"?"#eff6ff":"none",color:"#1d4ed8",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>📚 Portfólio</button>
-          <button onClick={()=>navigate("addProduct")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
+          <button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
           <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
         </>:<>
           <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>
@@ -744,6 +744,16 @@ export default function App() {
   /* ══ ROUTING ══ */
 
   // ── ADD PRODUCT ──
+  if(page==="addProduct"&&!user) return wrap(
+    <EmptyState
+      emoji="🔐"
+      title="Login necessário"
+      sub="Você precisa estar logado para anunciar camisetas."
+      action="Entrar / Cadastrar"
+      onAction={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }}
+    />,
+    760
+  );
   if(page==="addProduct") return wrap(
     <AddShirtForm
       user={user} form={form} setForm={setForm} formStep={formStep} setFormStep={setFormStep}
@@ -769,7 +779,7 @@ export default function App() {
         handleToggleFollow={handleToggleFollow} requireAuth={requireAuth} setContactModal={setContactModal}
         startEditShirt={startEditShirt} handleDeleteShirt={handleDeleteShirt} handleSubmitReview={handleSubmitReview}
       />
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>,
     1200,
     contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />
@@ -794,7 +804,7 @@ export default function App() {
         handleAnswerQuestion={handleAnswerQuestion} handleDeleteQuestion={handleDeleteQuestion}
         setShowAuth={setShowAuth} setAuthStep={setAuthStep} setAuthError={setAuthError} addToast={addToast}
       />
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>,
     1200,
     <>
@@ -842,7 +852,7 @@ export default function App() {
       {!shirtsLoading&&available.length===0&&(
         <EmptyState emoji="⚽" title="Seja o primeiro a anunciar!" sub="O mercado ainda está vazio. Cadastre sua camiseta e encontre compradores." action="+ Anunciar camiseta" onAction={()=>requireAuth(()=>navigate("addProduct"))} />
       )}
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>
   );
 
@@ -883,7 +893,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>
   );
 
@@ -931,7 +941,7 @@ export default function App() {
             })}
           </div>
         )}
-        <Footer onNavigate={navigate} />
+        <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
       </>
     );
   }
@@ -984,7 +994,7 @@ export default function App() {
         ?<EmptyState emoji="♡" title="Sua lista está vazia" sub="Salve as camisetas que você curtir clicando no coração e encontre-as aqui depois." action="Explorar catálogo →" onAction={()=>setPage("catalog")} />
         :<div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(auto-fit,minmax(150px,1fr))":"repeat(auto-fill,minmax(260px,1fr))",gap:14 }}>{shirts.filter(s=>wishlist.includes(s.id)).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>
       }
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>
   );
 
@@ -1002,7 +1012,7 @@ export default function App() {
           startEditShirt={startEditShirt} openShirt={openShirt} navigate={navigate}
           addToast={addToast} loadShirts={loadShirts}
         />
-        <Footer onNavigate={navigate} />
+        <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
       </>
     );
   }
@@ -1015,7 +1025,7 @@ export default function App() {
         publicPortfolioData={publicPortfolioData} publicPortfolioId={publicPortfolioId}
         isMobile={isMobile} openShirt={openShirt} openSeller={openSeller}
       />
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>
   );
 
