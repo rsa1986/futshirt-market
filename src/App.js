@@ -757,8 +757,8 @@ export default function App() {
   }
 
   async function loadFollows(uid) {
-    const { data } = await supabase.from("follows").select("seller_id").eq("follower_id", uid);
-    setFollows((data || []).map(r => r.seller_id));
+    const { data } = await supabase.from("follows").select("following_id").eq("follower_id", uid);
+    setFollows((data || []).map(r => r.following_id));
   }
 
   async function handleToggleFollow(sellerId) {
@@ -767,12 +767,12 @@ export default function App() {
     if(isFollowing){
       setFollows(f=>f.filter(id=>id!==sellerId));
       setSellerProfile(p=>p?{...p,followers:Math.max(0,(p.followers||1)-1)}:p);
-      await supabase.from("follows").delete().eq("follower_id",user.id).eq("seller_id",sellerId);
+      await supabase.from("follows").delete().eq("follower_id",user.id).eq("following_id",sellerId);
       await supabase.from("profiles").update({ followers:Math.max(0,(sellerProfile?.followers||1)-1) }).eq("id",sellerId);
     } else {
       setFollows(f=>[...f,sellerId]);
       setSellerProfile(p=>p?{...p,followers:(p.followers||0)+1}:p);
-      await supabase.from("follows").insert({ follower_id:user.id, seller_id:sellerId });
+      await supabase.from("follows").insert({ follower_id:user.id, following_id:sellerId });
       await supabase.from("profiles").update({ followers:(sellerProfile?.followers||0)+1 }).eq("id",sellerId);
     }
     addToast(isFollowing?"Deixou de seguir":"Seguindo! ✓", isFollowing?"info":"success");
