@@ -22,9 +22,9 @@ const REGIONS = {
   times:   [{ id:"nacional",label:"🇧🇷 Nacional (Brasil)" },{ id:"europa",label:"🌍 Europa" },{ id:"america_sul",label:"🌎 América do Sul" },{ id:"america_norte",label:"🌐 América do Norte" },{ id:"africa",label:"🌍 África" },{ id:"asia",label:"🌏 Ásia" }],
   selecoes:[{ id:"america_sul",label:"🌎 América do Sul" },{ id:"europa",label:"🌍 Europa" },{ id:"africa",label:"🌍 África" },{ id:"america_norte",label:"🌐 América do Norte" },{ id:"asia",label:"🌏 Ásia" }],
 };
-const CONDITIONS = ["Nova","Usada"];
-const RARITIES   = ["Comum","Rara","Muito Rara","Lendária"];
-const SIZES      = ["PP","P","M","G","GG"];
+const CONDITIONS   = ["Nova","Usada"];
+const SIZES        = ["PP","P","M","G","GG"];
+const SHIRT_MODELS = ["Modelo Jogador","Modelo Torcedor","Utilizado em Jogo"];
 const PRICES     = [{ id:"all",label:"Qualquer preço" },{ id:"0-300",label:"Até R$ 300" },{ id:"300-800",label:"R$ 300–800" },{ id:"800-2000",label:"R$ 800–2000" },{ id:"2000+",label:"Acima de R$ 2000" }];
 const BR_STATES  = [
   {sigla:"AC",nome:"Acre"},{sigla:"AL",nome:"Alagoas"},{sigla:"AP",nome:"Amapá"},
@@ -313,10 +313,10 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
 }
 /* ── FILTER BAR ── */
 function FilterBar({ filters,setFilters,search,setSearch }) {
-  const { sport,type,region,condition,rarity,size,price,state } = filters;
+  const { sport,type,region,condition,model,size,price,state } = filters;
   const set = (key,val) => setFilters(f=>({ ...f,[key]:f[key]===val?null:val }));
   const regionList = type ? REGIONS[type] : [];
-  const activeCount = [sport,type,region,condition,rarity,size,price&&price!=="all"?price:null,state].filter(Boolean).length;
+  const activeCount = [sport,type,region,condition,model,size,price&&price!=="all"?price:null,state].filter(Boolean).length;
   return (
     <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,padding:"14px 16px",marginBottom:18 }}>
       <div style={{ position:"relative",marginBottom:14 }}>
@@ -338,30 +338,30 @@ function FilterBar({ filters,setFilters,search,setSearch }) {
       </div>}
       <div style={{ height:1,background:C.gray100,margin:"10px 0" }} />
       <div style={{ display:"flex",flexWrap:"wrap",gap:14 }}>
+        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tipo</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{SHIRT_MODELS.map(m=><Pill key={m} active={model===m} onClick={()=>set("model",m)}>{m}</Pill>)}</div></div>
+        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Condição</p><div style={{ display:"flex",gap:6 }}>{CONDITIONS.map(c=><Pill key={c} active={condition===c} onClick={()=>set("condition",c)}>{c}</Pill>)}</div></div>
+        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tamanho</p><div style={{ display:"flex",gap:6 }}>{SIZES.map(s=><Pill key={s} active={size===s} onClick={()=>set("size",s)}>{s}</Pill>)}</div></div>
+        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Preço</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{PRICES.map(p=><Pill key={p.id} active={price===p.id&&p.id!=="all"} onClick={()=>set("price",p.id==="all"?null:p.id)}>{p.label}</Pill>)}</div></div>
         <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Estado do vendedor</p>
           <select value={state||""} onChange={e=>setFilters(f=>({...f,state:e.target.value||null}))} style={{ padding:"6px 12px",border:`1px solid ${state?C.green:C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer",color:state?C.greenDark:C.gray600,fontWeight:state?600:400 }}>
             <option value="">Todos os estados</option>
             {BR_STATES.map(s=><option key={s.sigla} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
           </select>
         </div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Condição</p><div style={{ display:"flex",gap:6 }}>{CONDITIONS.map(c=><Pill key={c} active={condition===c} onClick={()=>set("condition",c)}>{c}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Raridade</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{RARITIES.map(r=><Pill key={r} active={rarity===r} onClick={()=>set("rarity",r)}><span style={{ color:rCol[r] }}>●</span>{r}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tamanho</p><div style={{ display:"flex",gap:6 }}>{SIZES.map(s=><Pill key={s} active={size===s} onClick={()=>set("size",s)}>{s}</Pill>)}</div></div>
-        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Preço</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{PRICES.map(p=><Pill key={p.id} active={price===p.id&&p.id!=="all"} onClick={()=>set("price",p.id==="all"?null:p.id)}>{p.label}</Pill>)}</div></div>
       </div>
       {activeCount>0&&<div style={{ display:"flex",alignItems:"center",gap:8,marginTop:12,paddingTop:12,borderTop:`1px solid ${C.gray100}` }}>
         <span style={{ fontSize:12,color:C.gray400 }}>{activeCount} filtro{activeCount>1?"s":""} ativo{activeCount>1?"s":""}:</span>
         <div style={{ display:"flex",gap:6,flexWrap:"wrap",flex:1 }}>
-          {state&&<ActiveTag label={`📍 ${BR_STATES.find(s=>s.sigla===state)?.nome||state}`} onRemove={()=>setFilters(f=>({...f,state:null}))} />}
           {sport&&<ActiveTag label={SPORTS.find(s=>s.id===sport)?.label} onRemove={()=>setFilters(f=>({...f,sport:null,type:null,region:null}))} />}
           {type&&<ActiveTag label={TYPES.find(t=>t.id===type)?.label} onRemove={()=>setFilters(f=>({...f,type:null,region:null}))} />}
           {region&&<ActiveTag label={regionList.find(r=>r.id===region)?.label} onRemove={()=>setFilters(f=>({...f,region:null}))} />}
+          {model&&<ActiveTag label={model} onRemove={()=>setFilters(f=>({...f,model:null}))} />}
           {condition&&<ActiveTag label={condition} onRemove={()=>setFilters(f=>({...f,condition:null}))} />}
-          {rarity&&<ActiveTag label={rarity} onRemove={()=>setFilters(f=>({...f,rarity:null}))} />}
           {size&&<ActiveTag label={`Tam. ${size}`} onRemove={()=>setFilters(f=>({...f,size:null}))} />}
           {price&&price!=="all"&&<ActiveTag label={PRICES.find(p=>p.id===price)?.label} onRemove={()=>setFilters(f=>({...f,price:null}))} />}
+          {state&&<ActiveTag label={`📍 ${BR_STATES.find(s=>s.sigla===state)?.nome||state}`} onRemove={()=>setFilters(f=>({...f,state:null}))} />}
         </div>
-        <button onClick={()=>setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null,state:null})} style={{ fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:500,whiteSpace:"nowrap" }}>Limpar tudo</button>
+        <button onClick={()=>setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null})} style={{ fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:500,whiteSpace:"nowrap" }}>Limpar tudo</button>
       </div>}
     </div>
   );
@@ -457,12 +457,12 @@ export default function App() {
   const [photoIdx,setPhotoIdx]   = useState(0);
   const [lightbox, setLightbox] = useState(null);
   const [search,setSearch]       = useState("");
-  const [filters,setFilters]     = useState({ sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null,state:null });
+  const [filters,setFilters]     = useState({ sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null });
   const [sortBy,setSortBy]       = useState("relevancia");
   const [formStep,setFormStep]   = useState(1);
   const [formDone,setFormDone]   = useState(false);
   const [formSaving,setFormSaving] = useState(false);
-  const emptyForm = { team:"",country:"",year:"",edition:"",condition:"Nova",price:"",price_old:"",size:"M",rarity:"Comum",type:"times",region:"nacional",description:"",photos:[] };
+  const emptyForm = { team:"",country:"",year:"",edition:"",condition:"Nova",price:"",price_old:"",size:"M",model:"",type:"times",region:"nacional",description:"",photos:[] };
   const [form,setForm]           = useState(emptyForm);
   const [sellers,setSellers]           = useState([]);
   const [sellersLoading,setSellersLoading] = useState(false);
@@ -676,7 +676,7 @@ export default function App() {
     const payload = {
       team:form.team, country:form.country, year:parseInt(form.year)||2024,
       edition:form.edition, condition:form.condition, price:parseFloat(form.price)||0,
-      price_old:parseFloat(form.price_old)||null, size:form.size, rarity:form.rarity,
+      price_old:parseFloat(form.price_old)||null, size:form.size, model:form.model||null,
       type:form.type, region:form.region, description:form.description, photos:form.photos,
     };
     const { error } = editingShirtId
@@ -692,7 +692,7 @@ export default function App() {
       team:shirt.team||"", country:shirt.country||"", year:shirt.year||"",
       edition:shirt.edition||"", condition:shirt.condition||"Nova",
       price:shirt.price||"", price_old:shirt.price_old||"",
-      size:shirt.size||"M", rarity:shirt.rarity||"Comum",
+      size:shirt.size||"M", model:shirt.model||"",
       type:shirt.type||"times", region:shirt.region||"nacional",
       description:shirt.description||"", photos:shirt.photos||[],
     });
@@ -940,7 +940,7 @@ export default function App() {
       if(filters.type      && s.type      !== filters.type)      return false;
       if(filters.region    && s.region    !== filters.region)    return false;
       if(filters.condition && s.condition !== filters.condition) return false;
-      if(filters.rarity    && s.rarity    !== filters.rarity)    return false;
+      if(filters.model     && s.model     !== filters.model)     return false;
       if(filters.size      && s.size      !== filters.size)      return false;
       if(filters.price && filters.price!=="all") {
         const [mn,mx] = filters.price==="2000+"?[2000,Infinity]:filters.price.split("-").map(Number);
@@ -1122,7 +1122,7 @@ export default function App() {
                 {formErrors[k]&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors[k]}</p>}
               </div>
             ))}
-            {[["Tipo","type",[["times","Times"],["selecoes","Seleções"]]],["Região","region",[["nacional","Nacional"],["europa","Europa"],["america_sul","Am. Sul"],["america_norte","Am. Norte"],["africa","África"],["asia","Ásia"]]],["Condição","condition",[["Nova","Nova"],["Usada","Usada"]]],["Tamanho","size",[["PP","PP"],["P","P"],["M","M"],["G","G"],["GG","GG"]]],["Raridade","rarity",[["Comum","Comum"],["Rara","Rara"],["Muito Rara","Muito Rara"],["Lendária","Lendária"]]]].map(([l,k,opts])=>(
+            {[["Categoria","type",[["times","Times"],["selecoes","Seleções"]]],["Região","region",[["nacional","Nacional"],["europa","Europa"],["america_sul","Am. Sul"],["america_norte","Am. Norte"],["africa","África"],["asia","Ásia"]]],["Condição","condition",[["Nova","Nova"],["Usada","Usada"]]],["Tamanho","size",[["PP","PP"],["P","P"],["M","M"],["G","G"],["GG","GG"]]],["Tipo","model",[["","Selecione..."],["Modelo Jogador","Modelo Jogador"],["Modelo Torcedor","Modelo Torcedor"],["Utilizado em Jogo","Utilizado em Jogo"]]]].map(([l,k,opts])=>(
               <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>{l}</label><select value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>{opts.map(([v,lbl])=><option key={v} value={v}>{lbl}</option>)}</select></div>
             ))}
             <div style={{ gridColumn:"1/-1" }}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Descrição</label><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }} /></div>
@@ -1528,7 +1528,7 @@ export default function App() {
             title="Nenhuma camiseta encontrada"
             sub="Tente outros filtros ou limpe a busca para ver todos os itens."
             action="Limpar filtros"
-            onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null,state:null}); setSearch(""); }}
+            onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }}
           />
         )}
       </>}
