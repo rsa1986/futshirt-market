@@ -26,6 +26,17 @@ const CONDITIONS = ["Nova","Usada"];
 const RARITIES   = ["Comum","Rara","Muito Rara","Lendária"];
 const SIZES      = ["PP","P","M","G","GG"];
 const PRICES     = [{ id:"all",label:"Qualquer preço" },{ id:"0-300",label:"Até R$ 300" },{ id:"300-800",label:"R$ 300–800" },{ id:"800-2000",label:"R$ 800–2000" },{ id:"2000+",label:"Acima de R$ 2000" }];
+const BR_STATES  = [
+  {sigla:"AC",nome:"Acre"},{sigla:"AL",nome:"Alagoas"},{sigla:"AP",nome:"Amapá"},
+  {sigla:"AM",nome:"Amazonas"},{sigla:"BA",nome:"Bahia"},{sigla:"CE",nome:"Ceará"},
+  {sigla:"DF",nome:"Distrito Federal"},{sigla:"ES",nome:"Espírito Santo"},{sigla:"GO",nome:"Goiás"},
+  {sigla:"MA",nome:"Maranhão"},{sigla:"MT",nome:"Mato Grosso"},{sigla:"MS",nome:"Mato Grosso do Sul"},
+  {sigla:"MG",nome:"Minas Gerais"},{sigla:"PA",nome:"Pará"},{sigla:"PB",nome:"Paraíba"},
+  {sigla:"PR",nome:"Paraná"},{sigla:"PE",nome:"Pernambuco"},{sigla:"PI",nome:"Piauí"},
+  {sigla:"RJ",nome:"Rio de Janeiro"},{sigla:"RN",nome:"Rio Grande do Norte"},{sigla:"RS",nome:"Rio Grande do Sul"},
+  {sigla:"RO",nome:"Rondônia"},{sigla:"RR",nome:"Roraima"},{sigla:"SC",nome:"Santa Catarina"},
+  {sigla:"SP",nome:"São Paulo"},{sigla:"SE",nome:"Sergipe"},{sigla:"TO",nome:"Tocantins"},
+];
 const BANNERS_DEFAULT = [
   { id:1,label:"LANÇAMENTO",title:"Camisetas Lendárias",sub:"Peças raras dos anos 80 e 90 com procedência garantida",cta:"Explorar coleção",grad:"linear-gradient(120deg,#14532d 0%,#166534 60%,#15803d 100%)",accent:"#4ade80",img:"👑" },
   { id:2,label:"PROMOÇÃO",title:"Até 40% OFF",sub:"Colecionadores verificados com descontos exclusivos esta semana",cta:"Ver ofertas",grad:"linear-gradient(120deg,#1e3a5f 0%,#1d4ed8 60%,#2563eb 100%)",accent:"#93c5fd",img:"🏷️" },
@@ -296,10 +307,10 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
 }
 /* ── FILTER BAR ── */
 function FilterBar({ filters,setFilters,search,setSearch }) {
-  const { sport,type,region,condition,rarity,size,price } = filters;
+  const { sport,type,region,condition,rarity,size,price,state } = filters;
   const set = (key,val) => setFilters(f=>({ ...f,[key]:f[key]===val?null:val }));
   const regionList = type ? REGIONS[type] : [];
-  const activeCount = [sport,type,region,condition,rarity,size,price&&price!=="all"?price:null].filter(Boolean).length;
+  const activeCount = [sport,type,region,condition,rarity,size,price&&price!=="all"?price:null,state].filter(Boolean).length;
   return (
     <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,padding:"14px 16px",marginBottom:18 }}>
       <div style={{ position:"relative",marginBottom:14 }}>
@@ -321,6 +332,12 @@ function FilterBar({ filters,setFilters,search,setSearch }) {
       </div>}
       <div style={{ height:1,background:C.gray100,margin:"10px 0" }} />
       <div style={{ display:"flex",flexWrap:"wrap",gap:14 }}>
+        <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Estado do vendedor</p>
+          <select value={state||""} onChange={e=>setFilters(f=>({...f,state:e.target.value||null}))} style={{ padding:"6px 12px",border:`1px solid ${state?C.green:C.gray200}`,borderRadius:9,fontSize:13,background:C.white,cursor:"pointer",color:state?C.greenDark:C.gray600,fontWeight:state?600:400 }}>
+            <option value="">Todos os estados</option>
+            {BR_STATES.map(s=><option key={s.sigla} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
+          </select>
+        </div>
         <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Condição</p><div style={{ display:"flex",gap:6 }}>{CONDITIONS.map(c=><Pill key={c} active={condition===c} onClick={()=>set("condition",c)}>{c}</Pill>)}</div></div>
         <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Raridade</p><div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{RARITIES.map(r=><Pill key={r} active={rarity===r} onClick={()=>set("rarity",r)}><span style={{ color:rCol[r] }}>●</span>{r}</Pill>)}</div></div>
         <div><p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Tamanho</p><div style={{ display:"flex",gap:6 }}>{SIZES.map(s=><Pill key={s} active={size===s} onClick={()=>set("size",s)}>{s}</Pill>)}</div></div>
@@ -329,6 +346,7 @@ function FilterBar({ filters,setFilters,search,setSearch }) {
       {activeCount>0&&<div style={{ display:"flex",alignItems:"center",gap:8,marginTop:12,paddingTop:12,borderTop:`1px solid ${C.gray100}` }}>
         <span style={{ fontSize:12,color:C.gray400 }}>{activeCount} filtro{activeCount>1?"s":""} ativo{activeCount>1?"s":""}:</span>
         <div style={{ display:"flex",gap:6,flexWrap:"wrap",flex:1 }}>
+          {state&&<ActiveTag label={`📍 ${BR_STATES.find(s=>s.sigla===state)?.nome||state}`} onRemove={()=>setFilters(f=>({...f,state:null}))} />}
           {sport&&<ActiveTag label={SPORTS.find(s=>s.id===sport)?.label} onRemove={()=>setFilters(f=>({...f,sport:null,type:null,region:null}))} />}
           {type&&<ActiveTag label={TYPES.find(t=>t.id===type)?.label} onRemove={()=>setFilters(f=>({...f,type:null,region:null}))} />}
           {region&&<ActiveTag label={regionList.find(r=>r.id===region)?.label} onRemove={()=>setFilters(f=>({...f,region:null}))} />}
@@ -337,7 +355,7 @@ function FilterBar({ filters,setFilters,search,setSearch }) {
           {size&&<ActiveTag label={`Tam. ${size}`} onRemove={()=>setFilters(f=>({...f,size:null}))} />}
           {price&&price!=="all"&&<ActiveTag label={PRICES.find(p=>p.id===price)?.label} onRemove={()=>setFilters(f=>({...f,price:null}))} />}
         </div>
-        <button onClick={()=>setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null})} style={{ fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:500,whiteSpace:"nowrap" }}>Limpar tudo</button>
+        <button onClick={()=>setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null,state:null})} style={{ fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:500,whiteSpace:"nowrap" }}>Limpar tudo</button>
       </div>}
     </div>
   );
@@ -433,7 +451,7 @@ export default function App() {
   const [photoIdx,setPhotoIdx]   = useState(0);
   const [lightbox, setLightbox] = useState(null);
   const [search,setSearch]       = useState("");
-  const [filters,setFilters]     = useState({ sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null });
+  const [filters,setFilters]     = useState({ sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null,state:null });
   const [sortBy,setSortBy]       = useState("relevancia");
   const [formStep,setFormStep]   = useState(1);
   const [formDone,setFormDone]   = useState(false);
@@ -553,7 +571,7 @@ export default function App() {
 
   async function loadShirts() {
     setShirtsLoading(true);
-    const { data } = await supabase.from("shirts").select("*, profiles(name, rating, blocked)").order("created_at",{ ascending:false });
+    const { data } = await supabase.from("shirts").select("*, profiles(name, rating, blocked, state)").order("created_at",{ ascending:false });
     setShirts(data||[]);
     setShirtsLoading(false);
   }
@@ -845,6 +863,7 @@ export default function App() {
       if(s.profiles?.blocked) return false;
       if(s.status === "vendido") return false;
       if(search && !`${s.team} ${s.edition} ${s.country} ${s.year}`.toLowerCase().includes(search.toLowerCase())) return false;
+      if(filters.state     && s.profiles?.state !== filters.state) return false;
       if(filters.type      && s.type      !== filters.type)      return false;
       if(filters.region    && s.region    !== filters.region)    return false;
       if(filters.condition && s.condition !== filters.condition) return false;
@@ -1319,7 +1338,7 @@ export default function App() {
             title="Nenhuma camiseta encontrada"
             sub="Tente outros filtros ou limpe a busca para ver todos os itens."
             action="Limpar filtros"
-            onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null}); setSearch(""); }}
+            onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,rarity:null,size:null,price:null,state:null}); setSearch(""); }}
           />
         )}
       </>}
