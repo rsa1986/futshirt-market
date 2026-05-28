@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// ── Types ────────────────────────────────────────────────────────────
 type NotificationType = "new_question" | "question_answered";
 
 interface EmailNotification {
@@ -9,94 +8,95 @@ interface EmailNotification {
   type: NotificationType;
   recipient_email: string;
   data: Record<string, string>;
-  created_at: string;
 }
 
-// ── Subjects ────────────────────────────────────────────────────────
 function getSubject(type: NotificationType): string {
-  switch (type) {
-    case "new_question":
-      return "Nova pergunta no seu anúncio – FutShirt Market";
-    case "question_answered":
-      return "Sua pergunta foi respondida – FutShirt Market";
-  }
+  return type === "new_question"
+    ? "Nova pergunta no seu anúncio – FutShirt Market"
+    : "Sua pergunta foi respondida – FutShirt Market";
 }
 
-// ── Plain-text body (substituir por HTML quando o layout estiver pronto) ──
-function getBody(type: NotificationType, data: Record<string, string>): string {
+function getHtml(type: NotificationType, d: Record<string, string>): string {
   const base = "https://futshirt-market.vercel.app";
-  const link = data.shirt_id ? `${base}/#item-${data.shirt_id}` : base;
+  const link = d.shirt_id ? `${base}/#item-${d.shirt_id}` : base;
+  const btn = `display:inline-block;padding:12px 28px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;`;
 
-  switch (type) {
-    case "new_question":
-      return [
-        `Olá, ${data.seller_name}!`,
-        "",
-        `${data.asker_name} fez uma pergunta no seu anúncio "${data.shirt_team}":`,
-        "",
-        `"${data.question}"`,
-        "",
-        `Acesse o anúncio para responder: ${link}`,
-        "",
-        "– FutShirt Market",
-      ].join("\n");
+  const wrap = (body: string) => `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:system-ui,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
+<table width="100%" style="max-width:520px;background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;" cellpadding="0" cellspacing="0">
+  <tr><td style="background:#14532d;padding:18px 24px;">
+    <span style="font-size:16px;">⚽</span>
+    <span style="font-weight:800;font-size:18px;color:#ffffff;vertical-align:middle;margin-left:8px;">FutShirt Market</span>
+  </td></tr>
+  <tr><td style="padding:28px 24px 24px;">${body}</td></tr>
+  <tr><td style="padding:16px 24px;border-top:1px solid #f3f4f6;background:#f9fafb;">
+    <p style="margin:0;font-size:12px;color:#9ca3af;">Você recebe este email porque tem uma conta no FutShirt Market.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 
-    case "question_answered":
-      return [
-        `Olá, ${data.asker_name}!`,
-        "",
-        `O vendedor ${data.seller_name} respondeu sua pergunta sobre "${data.shirt_team}":`,
-        "",
-        `Sua pergunta: "${data.question}"`,
-        `Resposta: "${data.answer}"`,
-        "",
-        `Ver anúncio: ${link}`,
-        "",
-        "– FutShirt Market",
-      ].join("\n");
+  if (type === "new_question") {
+    return wrap(`
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#111827;">Nova pergunta no seu anúncio</h2>
+      <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.6;">Olá, <b>${d.seller_name}</b>! Alguém quer saber mais sobre a sua camiseta.</p>
+      <div style="background:#f3f4f6;border-radius:12px;padding:18px;margin-bottom:24px;">
+        <p style="margin:0 0 3px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;">Anúncio</p>
+        <p style="margin:0 0 14px;font-size:16px;font-weight:700;color:#111827;">${d.shirt_team}</p>
+        <p style="margin:0 0 3px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;">Pergunta de ${d.asker_name}</p>
+        <p style="margin:0;font-size:15px;color:#111827;line-height:1.5;">"${d.question}"</p>
+      </div>
+      <a href="${link}" style="${btn}">Responder pergunta →</a>
+    `);
   }
+
+  return wrap(`
+    <h2 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#111827;">Sua pergunta foi respondida! 🎉</h2>
+    <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.6;">Olá, <b>${d.asker_name}</b>! O vendedor respondeu sua dúvida.</p>
+    <div style="background:#f3f4f6;border-radius:12px;padding:18px;margin-bottom:24px;">
+      <p style="margin:0 0 3px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;">Anúncio</p>
+      <p style="margin:0 0 14px;font-size:16px;font-weight:700;color:#111827;">${d.shirt_team}</p>
+      <p style="margin:0 0 3px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;">Sua pergunta</p>
+      <p style="margin:0 0 14px;font-size:14px;color:#4b5563;line-height:1.5;">"${d.question}"</p>
+      <div style="border-left:3px solid #16a34a;padding-left:14px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#16a34a;">Resposta de ${d.seller_name}</p>
+        <p style="margin:0;font-size:15px;color:#111827;line-height:1.5;">"${d.answer}"</p>
+      </div>
+    </div>
+    <a href="${link}" style="${btn}">Ver anúncio →</a>
+  `);
 }
 
-// ── Send via provider ────────────────────────────────────────────────
-// TODO: escolha um provedor e implemente o envio aqui.
-// Sugestões: Resend (resend.com), SendGrid, Mailgun, AWS SES.
-//
-// Exemplo com Resend:
-//
-//   const res = await fetch("https://api.resend.com/emails", {
-//     method: "POST",
-//     headers: {
-//       "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
-//       "Content-Type": "application/json",
-//     },
-//     body: JSON.stringify({
-//       from: "FutShirt Market <noreply@futshirt.com.br>",
-//       to: [to],
-//       subject,
-//       text: body,
-//       // html: htmlBody,  // quando o layout estiver pronto
-//     }),
-//   });
-//   if (!res.ok) throw new Error(await res.text());
-//
-async function sendEmail(to: string, subject: string, body: string): Promise<void> {
-  // Placeholder – remova este bloco e implemente acima quando escolher o provedor
-  console.log(`[EMAIL] To: ${to} | Subject: ${subject}`);
-  console.log(body);
+async function sendEmail(to: string, subj: string, body: string): Promise<void> {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "FutShirt Market <onboarding@resend.dev>",
+      to: [to],
+      subject: subj,
+      html: body,
+    }),
+  });
+  if (!res.ok) throw new Error(await res.text());
 }
 
-// ── Handler ──────────────────────────────────────────────────────────
 serve(async () => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Busca notificações ainda não enviadas
   const { data: pending, error } = await supabase
     .from("email_notifications")
     .select("*")
     .is("sent_at", null)
+    .is("error_msg", null)
     .order("created_at", { ascending: true })
     .limit(50);
 
@@ -112,25 +112,12 @@ serve(async () => {
 
   for (const n of pending as EmailNotification[]) {
     try {
-      const subject = getSubject(n.type);
-      const body = getBody(n.type, n.data);
-
-      await sendEmail(n.recipient_email, subject, body);
-
-      await supabase
-        .from("email_notifications")
-        .update({ sent_at: new Date().toISOString() })
-        .eq("id", n.id);
-
+      await sendEmail(n.recipient_email, getSubject(n.type), getHtml(n.type, n.data));
+      await supabase.from("email_notifications").update({ sent_at: new Date().toISOString() }).eq("id", n.id);
       results.push({ id: n.id, status: "sent" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-
-      await supabase
-        .from("email_notifications")
-        .update({ error_msg: msg })
-        .eq("id", n.id);
-
+      await supabase.from("email_notifications").update({ error_msg: msg }).eq("id", n.id);
       results.push({ id: n.id, status: "error", error: msg });
     }
   }
