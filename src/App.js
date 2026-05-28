@@ -741,24 +741,35 @@ export default function App() {
       setBannerSaving(null);
       return;
     }
+    const NEW_COLS = ["visible","link"];
+    const isMissingCol = (msg) => msg.includes("does not exist") || msg.includes("schema cache");
+    // Primeira tentativa: salva tudo
     const { error } = await supabase.from("banners").update(edit).eq("id", id);
     if (!error) {
       setBanners(bs => bs.map(b => b.id===id ? {...b,...edit} : b));
       addToast("Banner atualizado!");
-    } else {
-      const msg = error.message || String(error);
-      // Identifica qual coluna causou o erro
-      const colMatch = msg.match(/column\s+"?(\w+)"?/i);
-      const badCol = colMatch?.[1] || null;
-      const missingCols = ["visible","link"].filter(c => msg.toLowerCase().includes(c));
-      const needsMigration = msg.includes("does not exist") && missingCols.length > 0;
-      setBannerErrors(prev => ({...prev, [id]: {
-        message: msg,
-        badCol,
-        missingCols,
-        needsMigration,
-      }}));
+      setBannerSaving(null);
+      return;
     }
+    const msg = error.message || String(error);
+    const missingCols = NEW_COLS.filter(c => msg.toLowerCase().includes(c));
+    const needsMigration = isMissingCol(msg) && missingCols.length > 0;
+    // Segunda tentativa: remove colunas novas e tenta salvar o resto
+    if (needsMigration) {
+      const safeEdit = Object.fromEntries(Object.entries(edit).filter(([k]) => !NEW_COLS.includes(k)));
+      if (Object.keys(safeEdit).length) {
+        const { error: err2 } = await supabase.from("banners").update(safeEdit).eq("id", id);
+        if (!err2) {
+          setBanners(bs => bs.map(b => b.id===id ? {...b,...safeEdit} : b));
+          addToast("Campos básicos salvos. Execute a migração SQL para ativar Visibilidade e Destino.", "error");
+          setBannerErrors(prev => ({...prev, [id]: { message: msg, missingCols, needsMigration, partialSave: true }}));
+          setBannerSaving(null);
+          return;
+        }
+      }
+    }
+    const colMatch = msg.match(/column\s+"?(\w+)"?/i);
+    setBannerErrors(prev => ({...prev, [id]: { message: msg, badCol: colMatch?.[1]||null, missingCols, needsMigration }}));
     setBannerSaving(null);
   }
 
@@ -2351,15 +2362,20 @@ export default function App() {
                         </div>
                       );
                     })()}
-                    {/* Caixa de erro detalhada */}
+                    {/* Caixa de erro / aviso de migração */}
                     {bErr&&(
-                      <div style={{ padding:"12px 14px",background:"#fef2f2",borderRadius:10,border:"2px solid #ef4444" }}>
-                        <p style={{ margin:"0 0 6px",fontSize:12,fontWeight:700,color:"#991b1b" }}>❌ Erro ao salvar o banner</p>
-                        <p style={{ margin:"0 0 8px",fontSize:11,color:"#b91c1c",fontFamily:"monospace",lineHeight:1.6,wordBreak:"break-all",background:"#fff",padding:"6px 9px",borderRadius:6,border:"1px solid #fecaca" }}>{bErr.message}</p>
+                      <div style={{ padding:"12px 14px",background:bErr.partialSave?"#fffbeb":"#fef2f2",borderRadius:10,border:`2px solid ${bErr.partialSave?"#f59e0b":"#ef4444"}` }}>
+                        <p style={{ margin:"0 0 4px",fontSize:12,fontWeight:700,color:bErr.partialSave?"#92400e":"#991b1b" }}>
+                          {bErr.partialSave?"⚠ Campos básicos salvos — migração pendente":"❌ Erro ao salvar o banner"}
+                        </p>
+                        {bErr.partialSave
+                          ? <p style={{ margin:"0 0 8px",fontSize:11,color:"#92400e",lineHeight:1.5 }}>Título, imagem e tema foram salvos. As colunas <strong>visible</strong> e <strong>link</strong> ainda não existem no banco — execute a migração abaixo para ativar Visibilidade e Destino.</p>
+                          : <p style={{ margin:"0 0 8px",fontSize:11,color:"#b91c1c",fontFamily:"monospace",lineHeight:1.6,wordBreak:"break-all",background:"#fff",padding:"6px 9px",borderRadius:6,border:"1px solid #fecaca" }}>{bErr.message}</p>
+                        }
                         {bErr.needsMigration&&(
                           <>
-                            <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:600,color:"#991b1b" }}>Solução: execute este SQL no Supabase → SQL Editor:</p>
-                            <pre style={{ margin:0,padding:"8px 10px",background:"#1e1e2e",color:"#a6e3a1",borderRadius:7,fontSize:11,overflowX:"auto",lineHeight:1.7 }}>{`ALTER TABLE banners ADD COLUMN IF NOT EXISTS visible boolean DEFAULT true;\nALTER TABLE banners ADD COLUMN IF NOT EXISTS link text DEFAULT 'catalog';`}</pre>
+                            <p style={{ margin:"0 0 4px",fontSize:11,fontWeight:600,color:bErr.partialSave?"#92400e":"#991b1b" }}>Execute no Supabase → SQL Editor:</p>
+                            <pre style={{ margin:0,padding:"8px 10px",background:"#1e1e2e",color:"#a6e3a1",borderRadius:7,fontSize:11,overflowX:"auto",lineHeight:1.7,userSelect:"all" }}>{`ALTER TABLE banners ADD COLUMN IF NOT EXISTS visible boolean DEFAULT true;\nALTER TABLE banners ADD COLUMN IF NOT EXISTS link text DEFAULT 'catalog';`}</pre>
                           </>
                         )}
                       </div>
