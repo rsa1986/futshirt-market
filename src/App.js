@@ -37,6 +37,11 @@ const BR_STATES  = [
   {sigla:"RO",nome:"Rondônia"},{sigla:"RR",nome:"Roraima"},{sigla:"SC",nome:"Santa Catarina"},
   {sigla:"SP",nome:"São Paulo"},{sigla:"SE",nome:"Sergipe"},{sigla:"TO",nome:"Tocantins"},
 ];
+const BOOST_PRICE = "R$ 9,90";
+const BOOST_DAYS  = 7;
+function isBoosted(s) {
+  return s.boosted && s.boosted_until && new Date(s.boosted_until) > new Date();
+}
 const PROFANITY = ["porra","merda","caralho","fdp","foda","foder","viado","buceta","cuzão","puta","vagabunda","arrombado","babaca","imbecil","desgraça","otário","corno","piranha","safado","safada","prostituta","idiota","retardado","burro","lixo","escória","raça","vsf","vtnc","tnc","krl","pqp","qrl"];
 function hasProfanity(text) {
   if(!text) return false;
@@ -230,9 +235,10 @@ function BannerCarousel({ onCta, banners }) {
 
 /* ── SHIRT CARD ── */
 function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
-  const disc = s.price_old ? Math.round((1 - s.price / s.price_old) * 100) : 0;
-  const photo = (s.photos || [])[0] || "⚽";
-  const isNew = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 48 * 60 * 60 * 1000;
+  const disc      = s.price_old ? Math.round((1 - s.price / s.price_old) * 100) : 0;
+  const photo     = (s.photos || [])[0] || "⚽";
+  const isNew     = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 48 * 60 * 60 * 1000;
+  const boosted   = isBoosted(s);
 
   return (
     <div
@@ -263,8 +269,13 @@ function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
           </span>
         )}
 
-        {(disc > 0 || isNew) && (
+        {(disc > 0 || isNew || boosted) && (
           <div style={{ position:"absolute",top:8,left:8,display:"flex",flexDirection:"column",gap:3 }}>
+            {boosted && (
+              <span style={{ background:"linear-gradient(90deg,#f59e0b,#f97316)",color:C.white,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start",letterSpacing:.4 }}>
+                ⚡ Destaque
+              </span>
+            )}
             {disc > 0 && (
               <span style={{ background:C.red,color:C.white,fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start" }}>
                 -{disc}%
@@ -495,6 +506,8 @@ export default function App() {
   const [answerLoading, setAnswerLoading]   = useState(null);
   const [adminQuestions, setAdminQuestions] = useState([]);
   const [adminNotifs, setAdminNotifs]       = useState([]);
+  const [boostModal, setBoostModal]         = useState(null); // shirt object
+  const [boostLoading, setBoostLoading]     = useState(false);
 
   // ref para o botão Voltar do navegador (acesso sem deps no event listener)
 
@@ -850,6 +863,40 @@ export default function App() {
     setAdminNotifs(data || []);
   }
 
+  async function handleRequestBoost(shirtId) {
+    setBoostLoading(true);
+    const { error } = await supabase.from("shirts")
+      .update({ boost_requested_at: new Date().toISOString() })
+      .eq("id", shirtId);
+    if(!error){
+      setShirts(ss => ss.map(s => s.id===shirtId ? {...s, boost_requested_at: new Date().toISOString()} : s));
+      setBoostModal(null);
+      addToast("Solicitação enviada! Aguarde a confirmação do pagamento.");
+    } else addToast("Erro ao solicitar destaque","error");
+    setBoostLoading(false);
+  }
+
+  async function handleActivateBoost(shirtId) {
+    const until = new Date(Date.now() + BOOST_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from("shirts")
+      .update({ boosted: true, boosted_until: until, boost_requested_at: null })
+      .eq("id", shirtId);
+    if(!error){
+      await loadShirts();
+      addToast(`Destaque ativado por ${BOOST_DAYS} dias! ⚡`);
+    } else addToast("Erro ao ativar destaque","error");
+  }
+
+  async function handleDeactivateBoost(shirtId) {
+    const { error } = await supabase.from("shirts")
+      .update({ boosted: false, boosted_until: null, boost_requested_at: null })
+      .eq("id", shirtId);
+    if(!error){
+      await loadShirts();
+      addToast("Destaque removido.","info");
+    } else addToast("Erro ao remover destaque","error");
+  }
+
   async function loadAdminQuestions() {
     const { data } = await supabase.from("questions")
       .select("*, asker:profiles!asker_id(name), shirt:shirts(team,edition)")
@@ -947,7 +994,11 @@ export default function App() {
         if(s.price<mn||s.price>mx) return false;
       }
       return true;
-    }).sort((a,b)=>sortBy==="preco_asc"?a.price-b.price:sortBy==="preco_desc"?b.price-a.price:sortBy==="avaliacao"?(b.rating||0)-(a.rating||0):0);
+    }).sort((a,b)=>{
+      const ab=isBoosted(a),bb=isBoosted(b);
+      if(ab&&!bb) return -1; if(!ab&&bb) return 1;
+      return sortBy==="preco_asc"?a.price-b.price:sortBy==="preco_desc"?b.price-a.price:sortBy==="avaliacao"?(b.rating||0)-(a.rating||0):0;
+    });
   }
 
   const filtered  = applyFilters(shirts);
@@ -1011,6 +1062,41 @@ export default function App() {
             <button onClick={handleRegister} disabled={authLoading||!reg.name||!reg.email||!reg.password} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Criando conta...":"Criar conta"}</button>
           </>}
         </div>
+      </div>
+    </div>
+  );
+
+  // ── BOOST MODAL ──
+  const boostModalEl = boostModal && (
+    <div onClick={e=>{ if(e.target===e.currentTarget) setBoostModal(null); }} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:2000,display:"flex",alignItems:"flex-end",justifyContent:"center" }}>
+      <div style={{ background:C.white,borderRadius:"20px 20px 0 0",padding:"1.5rem",width:"100%",maxWidth:480,boxSizing:"border-box" }}>
+        <div style={{ width:36,height:4,borderRadius:2,background:C.gray200,margin:"0 auto 18px" }} />
+        <h3 style={{ margin:"0 0 4px",fontWeight:700,fontSize:17 }}>⚡ Impulsionar Anúncio</h3>
+        <p style={{ margin:"0 0 18px",fontSize:13,color:C.gray400 }}>{boostModal.team}{boostModal.edition?` · ${boostModal.edition}`:""}</p>
+
+        <div style={{ background:"linear-gradient(120deg,#fef3c7,#fde68a)",borderRadius:14,padding:"1rem 1.25rem",marginBottom:16 }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+            <span style={{ fontWeight:700,fontSize:20,color:"#92400e" }}>{BOOST_PRICE}</span>
+            <span style={{ fontSize:13,color:"#b45309",fontWeight:600 }}>{BOOST_DAYS} dias</span>
+          </div>
+          <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
+            {["⚡ Aparece em destaque na home","🔝 Topo do catálogo","🏷️ Badge dourado no card"].map(t=>(
+              <span key={t} style={{ fontSize:13,color:"#92400e" }}>{t}</span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background:C.gray50,border:`1px solid ${C.gray200}`,borderRadius:12,padding:"12px 14px",marginBottom:16 }}>
+          <p style={{ margin:"0 0 6px",fontWeight:600,fontSize:13,color:C.gray900 }}>Como pagar:</p>
+          <p style={{ margin:"0 0 4px",fontSize:13,color:C.gray600 }}>1. Envie {BOOST_PRICE} via Pix para o admin</p>
+          <p style={{ margin:"0 0 4px",fontSize:13,color:C.gray600 }}>2. Clique em "Solicitar Destaque" abaixo</p>
+          <p style={{ margin:0,fontSize:13,color:C.gray600 }}>3. Após confirmação do pagamento, o destaque é ativado em até 24h</p>
+        </div>
+
+        <button onClick={()=>handleRequestBoost(boostModal.id)} disabled={boostLoading} style={{ width:"100%",padding:"13px 0",border:"none",borderRadius:12,background:"linear-gradient(90deg,#f59e0b,#f97316)",color:C.white,fontSize:15,fontWeight:700,cursor:"pointer",opacity:boostLoading?.7:1,marginBottom:8 }}>
+          {boostLoading?"Enviando...":"Solicitar Destaque ⚡"}
+        </button>
+        <button onClick={()=>setBoostModal(null)} style={{ width:"100%",padding:"11px 0",border:`1px solid ${C.gray200}`,borderRadius:12,background:C.white,cursor:"pointer",fontSize:14,color:C.gray600 }}>Cancelar</button>
       </div>
     </div>
   );
@@ -1468,6 +1554,13 @@ export default function App() {
 
       {shirtsLoading&&<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:30 }}>{[...Array(4)].map((_,i)=><SkeletonCard key={i} />)}</div>}
 
+      {!shirtsLoading&&available.filter(isBoosted).length>0&&<div style={{ marginBottom:30 }}>
+        <SectionHead icon="⚡" sub="anúncios impulsionados" title="Em Destaque" />
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
+          {available.filter(isBoosted).map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}
+        </div>
+      </div>}
+
       {!shirtsLoading&&promos.length>0&&<div style={{ marginBottom:30 }}>
         <SectionHead icon="🏷️" sub="ofertas especiais" title="Em promoção" action="Ver todas" onAction={()=>navigate("catalog")} />
         <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12 }}>
@@ -1733,6 +1826,12 @@ export default function App() {
                     <button onClick={()=>handleToggleShirtStatus(sh.id, sh.status)} style={{ padding:"6px 10px",background:sh.status==="vendido"?C.greenLight:C.amberLight,border:`1px solid ${sh.status==="vendido"?C.green:C.amber}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:sh.status==="vendido"?C.greenDark:C.amber }}>
                       {sh.status==="vendido"?"↩ Reativar":"✓ Vendido"}
                     </button>
+                    {isBoosted(sh)
+                      ? <span style={{ padding:"6px 10px",background:"linear-gradient(90deg,#fef3c7,#fde68a)",border:`1px solid ${C.amber}`,borderRadius:8,fontSize:11,fontWeight:600,color:"#92400e",textAlign:"center" }}>⚡ Ativo até {new Date(sh.boosted_until).toLocaleDateString("pt-BR")}</span>
+                      : sh.boost_requested_at
+                        ? <span style={{ padding:"6px 10px",background:C.blueLight,border:`1px solid ${C.blue}`,borderRadius:8,fontSize:11,fontWeight:500,color:C.blue,textAlign:"center" }}>⏳ Aguardando</span>
+                        : <button onClick={()=>setBoostModal(sh)} style={{ padding:"6px 10px",background:"linear-gradient(90deg,#f59e0b,#f97316)",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:600,color:C.white }}>⚡ Impulsionar</button>
+                    }
                     <button onClick={()=>handleDeleteShirt(sh.id)} style={{ padding:"6px 10px",background:C.redLight,border:`1px solid ${C.red}`,borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:500,color:C.red }}>🗑️</button>
                   </div>
                 </div>
@@ -1741,6 +1840,7 @@ export default function App() {
           )}
         </>}
 
+        {boostModalEl}
         {authModal}
         {toastEl}
       </div>
@@ -1757,7 +1857,7 @@ export default function App() {
 
         {/* Tabs */}
         <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8,flexWrap:"wrap" }}>
-          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["banners","🖼️ Banners"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
+          {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["boosts","⚡ Boosts"],["banners","🖼️ Banners"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
             <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); if(v==="emails") loadAdminNotifs(); }} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
           ))}
         </div>
@@ -1864,6 +1964,47 @@ export default function App() {
             })}
           </div>
         )}
+
+        {/* Tab: Boosts */}
+        {adminTab==="boosts"&&(()=>{
+          const pending = shirts.filter(s=>s.boost_requested_at&&!isBoosted(s));
+          const active  = shirts.filter(s=>isBoosted(s));
+          return (
+            <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
+              <div>
+                <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:14,color:C.gray900 }}>⏳ Solicitações pendentes ({pending.length})</p>
+                {pending.length===0&&<p style={{ color:C.gray400,fontSize:13 }}>Nenhuma solicitação pendente.</p>}
+                {pending.map(sh=>(
+                  <div key={sh.id} style={{ background:C.amberLight,border:`1px solid ${C.amber}`,borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12 }}>
+                    <div style={{ width:44,height:44,borderRadius:8,overflow:"hidden",background:C.gray50,flexShrink:0 }}><ShirtPhoto value={(sh.photos||[])[0]||"⚽"} size={44} /></div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <p style={{ margin:"0 0 2px",fontWeight:600,fontSize:14 }}>{sh.team}{sh.edition?` · ${sh.edition}`:""}</p>
+                      <p style={{ margin:0,fontSize:12,color:C.gray600 }}>Vendedor: {sh.profiles?.name||"—"} · Solicitado: {new Date(sh.boost_requested_at).toLocaleDateString("pt-BR")}</p>
+                    </div>
+                    <div style={{ display:"flex",gap:6,flexShrink:0 }}>
+                      <button onClick={()=>handleActivateBoost(sh.id)} style={{ padding:"7px 13px",borderRadius:8,border:"none",background:"linear-gradient(90deg,#f59e0b,#f97316)",color:C.white,fontSize:12,fontWeight:700,cursor:"pointer" }}>✅ Ativar {BOOST_DAYS}d</button>
+                      <button onClick={()=>handleDeactivateBoost(sh.id)} style={{ padding:"7px 10px",borderRadius:8,border:`1px solid ${C.red}`,background:C.redLight,color:C.red,fontSize:12,fontWeight:600,cursor:"pointer" }}>✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:14,color:C.gray900 }}>⚡ Destaques ativos ({active.length})</p>
+                {active.length===0&&<p style={{ color:C.gray400,fontSize:13 }}>Nenhum destaque ativo no momento.</p>}
+                {active.map(sh=>(
+                  <div key={sh.id} style={{ background:C.greenLight,border:`1px solid ${C.green}`,borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12 }}>
+                    <div style={{ width:44,height:44,borderRadius:8,overflow:"hidden",background:C.gray50,flexShrink:0 }}><ShirtPhoto value={(sh.photos||[])[0]||"⚽"} size={44} /></div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <p style={{ margin:"0 0 2px",fontWeight:600,fontSize:14 }}>{sh.team}{sh.edition?` · ${sh.edition}`:""}</p>
+                      <p style={{ margin:0,fontSize:12,color:C.greenDark }}>Expira: {new Date(sh.boosted_until).toLocaleDateString("pt-BR")} · {sh.profiles?.name||"—"}</p>
+                    </div>
+                    <button onClick={()=>handleDeactivateBoost(sh.id)} style={{ flexShrink:0,padding:"7px 12px",borderRadius:8,border:`1px solid ${C.red}`,background:C.redLight,color:C.red,fontSize:12,fontWeight:600,cursor:"pointer" }}>Remover</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Tab: E-mails */}
         {adminTab==="emails"&&(
