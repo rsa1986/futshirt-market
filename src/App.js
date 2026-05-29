@@ -808,28 +808,7 @@ export default function App() {
     760
   );
 
-  // ── SELLER PROFILE ──
-  if(sellerSlug) return wrap(
-    <>
-      <TrustBar />
-      <SellerProfile
-        sellerSlug={sellerSlug} sellerProfile={sellerProfile}
-        user={user} profile={profile} shirts={shirts} wishlist={wishlist} toggleWishlist={toggleWishlist}
-        follows={follows} isMobile={isMobile} sellerReviews={sellerReviews}
-        reviewForm={reviewForm} setReviewForm={setReviewForm} reviewLoading={reviewLoading}
-        onBack={()=>{ setSellerSlug(null); setSellerProfile(null); }}
-        openShirt={openShirt} openSeller={openSeller}
-        handleToggleFollow={handleToggleFollow} requireAuth={requireAuth} setContactModal={setContactModal}
-        startEditShirt={startEditShirt} handleDeleteShirt={handleDeleteShirt} handleSubmitReview={handleSubmitReview}
-        openDirectMessage={openDirectMessage}
-      />
-      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
-    </>,
-    1200,
-    contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />
-  );
-
-  // ── ITEM DETAIL ──
+  // ── ITEM DETAIL ── (vem antes de sellerSlug para ter prioridade quando aberto de dentro do perfil)
   if(selectedId) return wrap(
     <>
       <TrustBar />
@@ -860,6 +839,27 @@ export default function App() {
       )}
       {contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />}
     </>
+  );
+
+  // ── SELLER PROFILE ──
+  if(sellerSlug) return wrap(
+    <>
+      <TrustBar />
+      <SellerProfile
+        sellerSlug={sellerSlug} sellerProfile={sellerProfile}
+        user={user} profile={profile} shirts={shirts} wishlist={wishlist} toggleWishlist={toggleWishlist}
+        follows={follows} isMobile={isMobile} sellerReviews={sellerReviews}
+        reviewForm={reviewForm} setReviewForm={setReviewForm} reviewLoading={reviewLoading}
+        onBack={()=>{ setSellerSlug(null); setSellerProfile(null); }}
+        openShirt={openShirt} openSeller={openSeller}
+        handleToggleFollow={handleToggleFollow} requireAuth={requireAuth} setContactModal={setContactModal}
+        startEditShirt={startEditShirt} handleDeleteShirt={handleDeleteShirt} handleSubmitReview={handleSubmitReview}
+        openDirectMessage={openDirectMessage}
+      />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
+    </>,
+    1200,
+    contactModal&&<ContactModal seller={contactModal} onClose={()=>setContactModal(null)} />
   );
 
   // ── HOME ──
