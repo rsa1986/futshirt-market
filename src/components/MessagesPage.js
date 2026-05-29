@@ -12,6 +12,7 @@ export default function MessagesPage({ user, dmTarget, clearDmTarget }) {
   const [sending,     setSending]     = useState(false);
   const bottomRef = useRef(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadMessages(); }, []);
 
   useEffect(() => {
