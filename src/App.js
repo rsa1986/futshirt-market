@@ -635,12 +635,14 @@ export default function App() {
             <h3 style={{ margin:"0 0 1.1rem",fontWeight:700,fontSize:17 }}>Criar conta</h3>
             {authError&&<p style={{ margin:"0 0 12px",padding:"10px 14px",background:authError.startsWith("✅")?C.greenLight:C.redLight,color:authError.startsWith("✅")?C.greenDark:C.red,borderRadius:8,fontSize:13 }}>{authError}</p>}
             <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-              {[["Nome completo *","name","text"],["Email *","email","email"],["Senha *","password","password"]].map(([l,k,t])=>(
-                <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>{l}</label><input type={t} value={reg[k]} onChange={e=>setReg(r=>({...r,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} /></div>
+              {[["Nome completo","name","text"],["Email","email","email"],["Senha","password","password"]].map(([l,k,t])=>(
+                <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>{l} <span>*</span></label><input type={t} value={reg[k]} onChange={e=>setReg(r=>({...r,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} /></div>
               ))}
               <CityStatePicker stateVal={reg.state} cityVal={reg.city} onStateChange={v=>setReg(r=>({...r,state:v,city:""}))} onCityChange={v=>setReg(r=>({...r,city:v}))} required />
             </div>
-            <button onClick={handleRegister} disabled={authLoading||!reg.name||!reg.email||!reg.password||!reg.state||!reg.city} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Criando conta...":"Criar conta"}</button>
+            {(()=>{ const ready=!authLoading&&reg.name&&reg.email&&reg.password&&reg.state&&reg.city; return (
+            <button onClick={handleRegister} disabled={!ready} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:ready?C.green:"#d1d5db",color:ready?C.white:"#9ca3af",border:"none",borderRadius:12,cursor:ready?"pointer":"not-allowed",fontSize:15,fontWeight:600,transition:"background .2s" }}>{authLoading?"Criando conta...":"Criar conta"}</button>
+            ); })()}
           </>}
         </div>
       </div>
