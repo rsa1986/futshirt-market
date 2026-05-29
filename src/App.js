@@ -496,12 +496,14 @@ export default function App() {
     setTimeout(()=>setToasts(ts=>ts.filter(t=>t.id!==id)),3200);
   }
   async function openShirt(id) {
+    window.scrollTo(0, 0);
     window.history.pushState(null,"",`#item-${id}`);
     setSelectedId(id); setPhotoIdx(0); setShirtQuestions([]); setQuestionText(""); setAnswerTexts({});
     const { data } = await supabase.from("shirts").select("*, profiles(*)").eq("id",id).single();
     setSelectedShirt(data); loadQuestions(id);
   }
   async function openSeller(sellerId) {
+    window.scrollTo(0, 0);
     window.history.pushState(null,"",`#seller-${sellerId}`);
     const cached = sellers.find(s=>s.id===sellerId)||null;
     setSellerSlug(sellerId); setSellerProfile(cached); setSellerReviews([]); setReviewForm({ rating:5,comment:"" });
@@ -721,6 +723,7 @@ export default function App() {
 
   /* ── NAVIGATION ── */
   function navigate(target) {
+    window.scrollTo(0, 0);
     window.history.pushState(null,"",target==="home"?"#":`#${target}`);
     setPage(target); setSellerSlug(null); setSellerProfile(null); setSelectedId(null); setSelectedShirt(null);
     if(target.startsWith("page-")) {
