@@ -453,7 +453,7 @@ export function Footer({ onNavigate }) {
         </div>
       </div>
       <div style={{ borderTop:"1px solid #f3f4f6",paddingTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8 }}>
-        <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>© 2025 FutShirt Market — Todos os direitos reservados.</p>
+        <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>© 2026 FutShirt Market — Todos os direitos reservados.</p>
         <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>Feito para colecionadores de camisetas</p>
       </div>
     </div>
