@@ -1092,7 +1092,7 @@ export default function App() {
       <StaticPage page={currentPage} onBack={()=>navigate("home")} />
       <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>,
-    760
+    1200
   );
 
   return null;
