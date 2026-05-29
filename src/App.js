@@ -1088,7 +1088,10 @@ export default function App() {
 
   // ── PÁGINAS ESTÁTICAS ──
   if(page.startsWith("page-")) return wrap(
-    <StaticPage page={currentPage} onBack={()=>navigate("home")} />,
+    <>
+      <StaticPage page={currentPage} onBack={()=>navigate("home")} />
+      <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
+    </>,
     760
   );
 
