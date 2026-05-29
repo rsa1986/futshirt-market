@@ -761,7 +761,7 @@ export default function App() {
           {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
             <button key={v} onClick={()=>navigate(v)} style={{ background:page===v?C.greenLight:"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600 }}>{l}</button>
           ))}
-          {user&&<button onClick={()=>navigate("portfolio")} style={{ background:page==="portfolio"?"#eff6ff":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="portfolio"?600:400,color:page==="portfolio"?"#1d4ed8":C.gray600 }}>📚 Portfólio</button>}
+          {user&&<button onClick={()=>navigate("portfolio")} style={{ background:page==="portfolio"?"#eff6ff":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="portfolio"?600:400,color:page==="portfolio"?"#1d4ed8":C.gray600 }}>📚 Coleção</button>}
           {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ background:page==="admin"?"#fef3c7":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="admin"?600:400,color:page==="admin"?C.amber:C.gray600 }}>⚙️ Admin</button>}
         </div>}
         <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
@@ -791,7 +791,7 @@ export default function App() {
         ))}
         {user?<>
           {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
-          <button onClick={()=>navigate("portfolio")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="portfolio"?"#eff6ff":"none",color:"#1d4ed8",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>📚 Portfólio</button>
+          <button onClick={()=>navigate("portfolio")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="portfolio"?"#eff6ff":"none",color:"#1d4ed8",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>📚 Coleção</button>
           <button onClick={()=>navigate("messages")} style={{ position:"relative",flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="messages"?C.greenLight:"none",color:page==="messages"?C.green:C.gray600,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>
             ✉️{unreadMessages>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",marginLeft:2,fontWeight:700 }}>{unreadMessages}</span>}
           </button>
