@@ -844,7 +844,7 @@ export default function App() {
         openShirt={openShirt}
         openSeller={(id)=>{ setSelectedId(null); setSelectedShirt(null); openSeller(id); }}
         toggleWishlist={toggleWishlist} handleShare={handleShare} requireAuth={requireAuth}
-        setContactModal={setContactModal} handleAskQuestion={handleAskQuestion}
+        setContactModal={setContactModal} openDirectMessage={openDirectMessage} handleAskQuestion={handleAskQuestion}
         handleAnswerQuestion={handleAnswerQuestion} handleDeleteQuestion={handleDeleteQuestion}
         setShowAuth={setShowAuth} setAuthStep={setAuthStep} setAuthError={setAuthError} addToast={addToast}
       />

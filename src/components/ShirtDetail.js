@@ -6,7 +6,7 @@ export default function ShirtDetail({
   photoIdx, setPhotoIdx, setLightbox, shirtQuestions, questionText, setQuestionText,
   questionLoading, answerTexts, setAnswerTexts, answerLoading,
   onBack, openShirt, openSeller, toggleWishlist, handleShare, requireAuth,
-  setContactModal, handleAskQuestion, handleAnswerQuestion, handleDeleteQuestion,
+  setContactModal, openDirectMessage, handleAskQuestion, handleAnswerQuestion, handleDeleteQuestion,
   setShowAuth, setAuthStep, setAuthError, addToast,
 }) {
   return (
@@ -75,7 +75,7 @@ export default function ShirtDetail({
               <div style={{ display:"flex",gap:8 }}>
                 <button onClick={()=>toggleWishlist(s.id)} style={{ flex:1,padding:"11px 0",border:`1px solid ${C.gray200}`,borderRadius:12,background:wishlist.includes(s.id)?C.redLight:C.white,color:wishlist.includes(s.id)?C.red:C.gray900,cursor:"pointer",fontSize:14,fontWeight:500 }}>{wishlist.includes(s.id)?"♥ Favoritado":"♡ Favoritar"}</button>
                 <button onClick={()=>handleShare(s)} title="Compartilhar" style={{ padding:"11px 14px",border:`1px solid ${C.gray200}`,borderRadius:12,background:C.white,color:C.gray600,cursor:"pointer",fontSize:16,flexShrink:0 }}>📤</button>
-                <button onClick={()=>requireAuth(()=>sl&&setContactModal(sl))} style={{ flex:2,padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,cursor:"pointer",fontSize:14,fontWeight:700 }}>💬 Entrar em contato</button>
+                <button onClick={()=>requireAuth(()=>sl&&openDirectMessage(sl.id, s.id))} style={{ flex:2,padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,cursor:"pointer",fontSize:14,fontWeight:700 }}>💬 Entrar em contato</button>
               </div>
             </div>
           </div>
