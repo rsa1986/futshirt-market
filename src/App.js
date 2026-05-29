@@ -56,7 +56,7 @@ export default function App() {
   const [formErrors,setFormErrors]     = useState({});
   const [profileSaving,setProfileSaving] = useState(false);
   const [profileSaved,setProfileSaved] = useState(false);
-  const [reg,setReg]             = useState({ name:"",email:"",password:"",state:"",city:"",bio:"" });
+  const [reg,setReg]             = useState({ name:"",email:"",password:"",state:"",city:"" });
   const [loginData,setLoginData] = useState({ email:"",password:"" });
   const [showLoginPwd,setShowLoginPwd] = useState(false);
   const [showAuth,setShowAuth]         = useState(false);
@@ -277,7 +277,7 @@ export default function App() {
     if(error) setAuthError(error.message);
     else {
       const { data:{ session } } = await supabase.auth.getSession();
-      if(session) await supabase.from("profiles").update({ state:reg.state,city:reg.city,location:[reg.city,reg.state].filter(Boolean).join(", ")||null,bio:reg.bio }).eq("id",session.user.id);
+      if(session) await supabase.from("profiles").update({ state:reg.state,city:reg.city,location:[reg.city,reg.state].filter(Boolean).join(", ")||null }).eq("id",session.user.id);
       setAuthError("✅ Conta criada! Verifique seu email para confirmar.");
     }
     setAuthLoading(false);
@@ -601,8 +601,33 @@ export default function App() {
               ))}
             </div>
             <button onClick={handleLogin} disabled={authLoading||!loginData.email||!loginData.password} style={{ width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Entrando...":"Entrar"}</button>
+            <p style={{ textAlign:"center",margin:"10px 0 0",fontSize:12 }}>
+              <span onClick={()=>{ setAuthStep("forgot"); setAuthError(""); }} style={{ color:C.gray400,cursor:"pointer",textDecoration:"underline" }}>Esqueci minha senha</span>
+            </p>
             <div style={{ display:"flex",alignItems:"center",gap:8,margin:"1rem 0" }}><div style={{ flex:1,height:1,background:C.gray200 }}/><span style={{ fontSize:12,color:C.gray400 }}>ou</span><div style={{ flex:1,height:1,background:C.gray200 }}/></div>
             <p style={{ textAlign:"center",fontSize:13,color:C.gray600,margin:0 }}>Não tem conta? <span onClick={()=>{ setAuthStep("register"); setAuthError(""); }} style={{ color:C.green,cursor:"pointer",fontWeight:600 }}>Criar conta grátis</span></p>
+          </>:authStep==="forgot"?<>
+            <button onClick={()=>{ setAuthStep("login"); setAuthError(""); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:13,cursor:"pointer",padding:"0 0 1rem" }}>← Voltar</button>
+            <h3 style={{ margin:"0 0 6px",fontWeight:700,fontSize:17 }}>Recuperar senha</h3>
+            <p style={{ margin:"0 0 1.1rem",fontSize:13,color:C.gray500 }}>Digite seu email e enviaremos um link para criar uma nova senha.</p>
+            {authError&&<p style={{ margin:"0 0 12px",padding:"10px 14px",background:authError.startsWith("✅")?C.greenLight:C.redLight,color:authError.startsWith("✅")?C.greenDark:C.red,borderRadius:8,fontSize:13 }}>{authError}</p>}
+            <div style={{ marginBottom:"1rem" }}>
+              <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Email</label>
+              <input type="email" value={loginData.email} onChange={e=>setLoginData(d=>({...d,email:e.target.value}))}
+                placeholder="seu@email.com"
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+            </div>
+            <button onClick={async()=>{
+              if(!loginData.email){ setAuthError("Informe seu email."); return; }
+              setAuthLoading(true);
+              const { error } = await supabase.auth.resetPasswordForEmail(loginData.email, { redirectTo: window.location.origin });
+              setAuthLoading(false);
+              if(error) setAuthError(error.message);
+              else setAuthError("✅ Link enviado! Verifique seu email para redefinir a senha.");
+            }} disabled={authLoading||!loginData.email}
+              style={{ width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>
+              {authLoading?"Enviando...":"Enviar link de recuperação"}
+            </button>
           </>:<>
             <button onClick={()=>{ setAuthStep("login"); setAuthError(""); }} style={{ background:"none",border:"none",color:C.gray400,fontSize:13,cursor:"pointer",padding:"0 0 1rem" }}>← Voltar</button>
             <h3 style={{ margin:"0 0 1.1rem",fontWeight:700,fontSize:17 }}>Criar conta</h3>
@@ -612,7 +637,6 @@ export default function App() {
                 <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>{l}</label><input type={t} value={reg[k]} onChange={e=>setReg(r=>({...r,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} /></div>
               ))}
               <CityStatePicker stateVal={reg.state} cityVal={reg.city} onStateChange={v=>setReg(r=>({...r,state:v}))} onCityChange={v=>setReg(r=>({...r,city:v}))} />
-              <div><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>Sobre você</label><textarea value={reg.bio} onChange={e=>setReg(r=>({...r,bio:e.target.value}))} rows={3} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",resize:"none" }} /></div>
             </div>
             <button onClick={handleRegister} disabled={authLoading||!reg.name||!reg.email||!reg.password} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Criando conta...":"Criar conta"}</button>
           </>}
