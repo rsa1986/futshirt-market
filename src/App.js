@@ -273,6 +273,8 @@ export default function App() {
     if(reg.name.trim().length<2){ setAuthError("Nome deve ter pelo menos 2 caracteres."); setAuthLoading(false); return; }
     if(!/\S+@\S+\.\S+/.test(reg.email)){ setAuthError("Informe um email válido."); setAuthLoading(false); return; }
     if(reg.password.length<6){ setAuthError("Senha deve ter pelo menos 6 caracteres."); setAuthLoading(false); return; }
+    if(!reg.state){ setAuthError("Selecione seu estado."); setAuthLoading(false); return; }
+    if(!reg.city){ setAuthError("Selecione sua cidade."); setAuthLoading(false); return; }
     const { error } = await supabase.auth.signUp({ email:reg.email,password:reg.password,options:{ data:{ full_name:reg.name } } });
     if(error) setAuthError(error.message);
     else {
@@ -636,9 +638,9 @@ export default function App() {
               {[["Nome completo *","name","text"],["Email *","email","email"],["Senha *","password","password"]].map(([l,k,t])=>(
                 <div key={k}><label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:3 }}>{l}</label><input type={t} value={reg[k]} onChange={e=>setReg(r=>({...r,[k]:e.target.value}))} style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} /></div>
               ))}
-              <CityStatePicker stateVal={reg.state} cityVal={reg.city} onStateChange={v=>setReg(r=>({...r,state:v}))} onCityChange={v=>setReg(r=>({...r,city:v}))} />
+              <CityStatePicker stateVal={reg.state} cityVal={reg.city} onStateChange={v=>setReg(r=>({...r,state:v,city:""}))} onCityChange={v=>setReg(r=>({...r,city:v}))} required />
             </div>
-            <button onClick={handleRegister} disabled={authLoading||!reg.name||!reg.email||!reg.password} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Criando conta...":"Criar conta"}</button>
+            <button onClick={handleRegister} disabled={authLoading||!reg.name||!reg.email||!reg.password||!reg.state||!reg.city} style={{ marginTop:"1rem",width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>{authLoading?"Criando conta...":"Criar conta"}</button>
           </>}
         </div>
       </div>

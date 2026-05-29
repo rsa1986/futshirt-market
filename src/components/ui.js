@@ -71,7 +71,7 @@ export function StarPicker({ value, onChange }) {
   );
 }
 
-export function CityStatePicker({ stateVal, cityVal, onStateChange, onCityChange }) {
+export function CityStatePicker({ stateVal, cityVal, onStateChange, onCityChange, required }) {
   const [ibgeStates, setIbgeStates] = useState([]);
   const [ibgeCities, setIbgeCities] = useState([]);
   const [loadingCities, setLoadingCities] = useState(false);
@@ -90,7 +90,7 @@ export function CityStatePicker({ stateVal, cityVal, onStateChange, onCityChange
   return (
     <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
       <div>
-        <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Estado</label>
+        <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Estado{required&&<span style={{ color:"#ef4444" }}> *</span>}</label>
         <select value={stateVal} onChange={e => { onStateChange(e.target.value); onCityChange(""); }}
           style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",background:C.white }}>
           <option value="">Selecione o estado...</option>
@@ -100,7 +100,7 @@ export function CityStatePicker({ stateVal, cityVal, onStateChange, onCityChange
       {stateVal && (
         <div>
           <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>
-            Cidade{loadingCities ? " (carregando...)" : ""}
+            Cidade{loadingCities ? " (carregando...)" : ""}{required&&<span style={{ color:"#ef4444" }}> *</span>}
           </label>
           <input
             list={`ibge-cities-${stateVal}`}
