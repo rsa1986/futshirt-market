@@ -1,4 +1,4 @@
-import { C, BR_CLUBS, BR_STATES } from "./constants";
+import { C, BR_CLUBS, BR_STATES, NATIONAL_TEAMS } from "./constants";
 import { ShirtPhoto, Tag } from "./ui";
 import PhotoUploader from "./PhotoUploader";
 
@@ -113,12 +113,14 @@ export default function AddShirtForm({
             {formErrors.region&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.region}</p>}
           </div>}
 
-          {/* Se Seleção + Continente: Nome da seleção */}
+          {/* Se Seleção + Continente: escolha da seleção */}
           {form.type==="selecoes"&&form.region&&<div>
             <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Seleção *</label>
-            <input value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value,country:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
-              placeholder="Ex: Brasil, Argentina, França..."
-              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+            <select value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value,country:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
+              <option value="">Selecione...</option>
+              {(NATIONAL_TEAMS[form.region]||[]).map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
             {formErrors.team&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.team}</p>}
           </div>}
 

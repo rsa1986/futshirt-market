@@ -34,6 +34,14 @@ export const BR_STATES  = [
   {sigla:"RO",nome:"Rondônia"},{sigla:"RR",nome:"Roraima"},{sigla:"SC",nome:"Santa Catarina"},
   {sigla:"SP",nome:"São Paulo"},{sigla:"SE",nome:"Sergipe"},{sigla:"TO",nome:"Tocantins"},
 ];
+export const NATIONAL_TEAMS = {
+  america_sul: ["Argentina","Bolívia","Brasil","Chile","Colômbia","Equador","Paraguai","Peru","Uruguai","Venezuela"],
+  europa:      ["Alemanha","Áustria","Bélgica","Croácia","Dinamarca","England","Escócia","Espanha","França","Grécia","Holanda","Hungria","Inglaterra","Irlanda","Itália","Noruega","Polônia","Portugal","República Tcheca","Romênia","Rússia","Sérvia","Suécia","Suíça","Turquia","Ucrânia"],
+  africa:      ["África do Sul","Argélia","Camarões","Costa do Marfim","Egito","Gana","Mali","Marrocos","Nigéria","Senegal","Tunísia"],
+  america_norte: ["Canadá","Costa Rica","Estados Unidos","Honduras","Jamaica","México","Panamá","Trinidad e Tobago"],
+  asia:        ["Arábia Saudita","Austrália","China","Coreia do Sul","Emirados Árabes","Irã","Japão","Qatar"],
+};
+
 export const BR_CLUBS = {
   SP: ["Água Santa","Botafogo SP","Corinthians","Ferroviária","Guarani","Inter de Limeira","Ituano","Mirassol","Novorizontino","Palmeiras","Ponte Preta","Portuguesa","Red Bull Bragantino","Santo André","Santos","São Bernardo","São Caetano","São Paulo"],
   RJ: ["Botafogo","Flamengo","Fluminense","Madureira","Nova Iguaçu","Vasco da Gama"],
