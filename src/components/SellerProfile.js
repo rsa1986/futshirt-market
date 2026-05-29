@@ -25,14 +25,10 @@ export default function SellerProfile({
                 {follows.includes(sellerSlug)?"✓ Seguindo":"+ Seguir"}
               </button>
             )}
-            <button onClick={()=>requireAuth(()=>setContactModal(sellerProfile))}
-              style={{ padding:"6px 14px",border:`1px solid ${C.gray200}`,borderRadius:9,background:C.white,cursor:"pointer",fontSize:13 }}>
-              💬 WhatsApp
-            </button>
             {user?.id !== sellerSlug&&(
               <button onClick={()=>openDirectMessage(sellerSlug)}
-                style={{ padding:"6px 14px",border:`1px solid ${C.blue}`,borderRadius:9,background:C.blueLight,color:C.blue,cursor:"pointer",fontSize:13,fontWeight:600 }}>
-                ✉️ Mensagem
+                style={{ padding:"6px 14px",border:"none",borderRadius:9,background:C.green,color:C.white,cursor:"pointer",fontSize:13,fontWeight:600 }}>
+                💬 Entrar em contato
               </button>
             )}
           </div>
