@@ -5,7 +5,7 @@ export default function SellerProfile({
   sellerSlug, sellerProfile, user, profile, shirts, wishlist, toggleWishlist, follows, isMobile,
   sellerReviews, reviewForm, setReviewForm, reviewLoading,
   onBack, openShirt, openSeller, handleToggleFollow, requireAuth, setContactModal,
-  startEditShirt, handleDeleteShirt, handleSubmitReview,
+  startEditShirt, handleDeleteShirt, handleSubmitReview, openDirectMessage,
 }) {
   const sellerShirts = shirts.filter(sh => sh.seller_id === sellerSlug);
 
@@ -27,8 +27,14 @@ export default function SellerProfile({
             )}
             <button onClick={()=>requireAuth(()=>setContactModal(sellerProfile))}
               style={{ padding:"6px 14px",border:`1px solid ${C.gray200}`,borderRadius:9,background:C.white,cursor:"pointer",fontSize:13 }}>
-              💬 Mensagem
+              💬 WhatsApp
             </button>
+            {user?.id !== sellerSlug&&(
+              <button onClick={()=>openDirectMessage(sellerSlug)}
+                style={{ padding:"6px 14px",border:`1px solid ${C.blue}`,borderRadius:9,background:C.blueLight,color:C.blue,cursor:"pointer",fontSize:13,fontWeight:600 }}>
+                ✉️ Mensagem
+              </button>
+            )}
           </div>
         </div>
         <h2 style={{ margin:"0 0 2px",fontWeight:700,fontSize:20 }}>{sellerProfile.name}</h2>

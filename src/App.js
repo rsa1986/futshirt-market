@@ -17,6 +17,7 @@ import AddShirtForm from "./components/AddShirtForm";
 import MyProfile from "./components/MyProfile";
 import AdminPage from "./components/AdminPage";
 import StaticPage from "./components/StaticPage";
+import MessagesPage from "./components/MessagesPage";
 
 /* ══ MAIN APP ══ */
 export default function App() {
@@ -81,6 +82,8 @@ export default function App() {
   const [adminNotifs,setAdminNotifs]   = useState([]);
   const [sitePages,setSitePages]       = useState([]);
   const [currentPage,setCurrentPage]   = useState(null);
+  const [unreadMessages,setUnreadMessages] = useState(0);
+  const [dmTarget,setDmTarget]         = useState(null);
   const [boostModal,setBoostModal]     = useState(null);
   const [boostLoading,setBoostLoading] = useState(false);
   const [alertTerms,setAlertTerms]     = useState(()=>{ try{return JSON.parse(localStorage.getItem("fsm_alerts")||"[]");}catch{return [];} });
@@ -108,7 +111,7 @@ export default function App() {
   },[]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(()=>{ if(user) loadNotifications(); },[user]);
+  useEffect(()=>{ if(user) { loadNotifications(); loadUnreadMessages(); } },[user]);
 
   useEffect(()=>{ loadShirts(); loadBanners(); loadSitePages();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -207,6 +210,17 @@ export default function App() {
   async function loadFollows(uid) {
     const { data } = await supabase.from("follows").select("following_id").eq("follower_id",uid);
     setFollows((data||[]).map(r=>r.following_id));
+  }
+  async function loadUnreadMessages() {
+    const { count } = await supabase.from("direct_messages")
+      .select("*", { count:"exact", head:true })
+      .eq("receiver_id", user.id).is("read_at", null);
+    setUnreadMessages(count || 0);
+  }
+  function openDirectMessage(userId, shirtId=null) {
+    if(!user){ setShowAuth(true); setAuthStep("login"); setAuthError(""); return; }
+    setDmTarget({ userId, shirtId });
+    navigate("messages");
   }
   async function loadSitePages() {
     const { data } = await supabase.from("site_pages").select("*").order("slug");
@@ -725,6 +739,9 @@ export default function App() {
               ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
               {alertMatches.length>0&&<span style={{ background:C.amber,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>🔔{alertMatches.length}</span>}
             </button>
+            <button onClick={()=>navigate("messages")} style={{ position:"relative",background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="messages"?C.green:C.gray600 }}>
+              ✉️{unreadMessages>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{unreadMessages}</span>}
+            </button>
             <button onClick={()=>{ setShowNotifs(v=>{ if(!v){ localStorage.setItem("fsm_notifs_seen",Date.now()); setNotifBadge(0); } return !v; }); }} style={{ position:"relative",background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:showNotifs?C.green:C.gray600 }}>
               🔔{notifBadge>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{notifBadge}</span>}
             </button>
@@ -744,6 +761,9 @@ export default function App() {
         {user?<>
           {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
           <button onClick={()=>navigate("portfolio")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="portfolio"?"#eff6ff":"none",color:"#1d4ed8",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>📚 Portfólio</button>
+          <button onClick={()=>navigate("messages")} style={{ position:"relative",flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="messages"?C.greenLight:"none",color:page==="messages"?C.green:C.gray600,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>
+            ✉️{unreadMessages>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",marginLeft:2,fontWeight:700 }}>{unreadMessages}</span>}
+          </button>
           <button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
           <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
         </>:<>
@@ -801,6 +821,7 @@ export default function App() {
         openShirt={openShirt} openSeller={openSeller}
         handleToggleFollow={handleToggleFollow} requireAuth={requireAuth} setContactModal={setContactModal}
         startEditShirt={startEditShirt} handleDeleteShirt={handleDeleteShirt} handleSubmitReview={handleSubmitReview}
+        openDirectMessage={openDirectMessage}
       />
       <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
     </>,
@@ -1085,6 +1106,20 @@ export default function App() {
       sitePages={sitePages} handleSavePage={handleSavePage} addToast={addToast}
     />
   );
+
+  // ── MESSAGES ──
+  if(page==="messages") {
+    if(!user){ navigate("home"); return null; }
+    return wrap(
+      <>
+        <MessagesPage
+          user={user} dmTarget={dmTarget}
+          clearDmTarget={()=>setDmTarget(null)}
+        />
+        <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
+      </>
+    );
+  }
 
   // ── PÁGINAS ESTÁTICAS ──
   if(page.startsWith("page-")) return wrap(
