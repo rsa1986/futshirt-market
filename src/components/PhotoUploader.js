@@ -5,6 +5,10 @@ const MAX_PHOTOS = 6;
 const MAX_MB = 5;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
+const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+  typeof navigator !== "undefined" ? navigator.userAgent : ""
+);
+
 export default function PhotoUploader({ userId, photos, setPhotos }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -169,42 +173,109 @@ export default function PhotoUploader({ userId, photos, setPhotos }) {
 
       {/* Área de upload */}
       {photos.length < MAX_PHOTOS && (
-        <label
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            padding: "22px 16px",
-            border: "2px dashed #d1d5db",
-            borderRadius: 12,
-            cursor: uploading ? "not-allowed" : "pointer",
-            background: uploading ? "#f9fafb" : "#fff",
-            transition: "border-color .2s",
-          }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            handleFiles({ target: { files: e.dataTransfer.files } });
-          }}
-        >
-          <span style={{ fontSize: 28 }}>📸</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-            {uploading ? "Enviando..." : "Clique ou arraste fotos aqui"}
-          </span>
-          <span style={{ fontSize: 11, color: "#9ca3af" }}>
-            JPG, PNG ou WebP · máx. {MAX_MB}MB · até {MAX_PHOTOS} fotos
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            disabled={uploading}
-            onChange={handleFiles}
-            style={{ display: "none" }}
-          />
-        </label>
+        isMobile ? (
+          <div style={{ display: "flex", gap: 10 }}>
+            {/* Câmera */}
+            <label
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "18px 12px",
+                border: "2px dashed #d1d5db",
+                borderRadius: 12,
+                cursor: uploading ? "not-allowed" : "pointer",
+                background: uploading ? "#f9fafb" : "#fff",
+              }}
+            >
+              <span style={{ fontSize: 28 }}>📷</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                {uploading ? "Enviando..." : "Câmera"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={uploading}
+                onChange={handleFiles}
+                style={{ display: "none" }}
+              />
+            </label>
+
+            {/* Galeria */}
+            <label
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "18px 12px",
+                border: "2px dashed #d1d5db",
+                borderRadius: 12,
+                cursor: uploading ? "not-allowed" : "pointer",
+                background: uploading ? "#f9fafb" : "#fff",
+              }}
+            >
+              <span style={{ fontSize: 28 }}>🖼️</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                {uploading ? "Enviando..." : "Galeria"}
+              </span>
+              <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                JPG, PNG ou WebP · máx. {MAX_MB}MB
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={uploading}
+                onChange={handleFiles}
+                style={{ display: "none" }}
+              />
+            </label>
+          </div>
+        ) : (
+          <label
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "22px 16px",
+              border: "2px dashed #d1d5db",
+              borderRadius: 12,
+              cursor: uploading ? "not-allowed" : "pointer",
+              background: uploading ? "#f9fafb" : "#fff",
+              transition: "border-color .2s",
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleFiles({ target: { files: e.dataTransfer.files } });
+            }}
+          >
+            <span style={{ fontSize: 28 }}>📸</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              {uploading ? "Enviando..." : "Clique ou arraste fotos aqui"}
+            </span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>
+              JPG, PNG ou WebP · máx. {MAX_MB}MB · até {MAX_PHOTOS} fotos
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={uploading}
+              onChange={handleFiles}
+              style={{ display: "none" }}
+            />
+          </label>
+        )
       )}
 
       {/* Contagem e erro */}
