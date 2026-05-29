@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   C, rCol, rBg, SPORTS, TYPES, REGIONS, CONDITIONS, SIZES, SHIRT_MODELS, PRICES, BR_STATES,
-  CATEGORY_TILES, BANNERS_DEFAULT, isBoosted, isUrl, parseImg,
+  CATEGORY_TILES, BANNERS_DEFAULT, BR_CLUBS, isBoosted, isUrl, parseImg,
 } from "./constants";
 
 /* ── SHIMMER ── */
@@ -254,10 +254,12 @@ function ActiveTag({ label,onRemove }) {
 
 export function FilterBar({ filters,setFilters,search,setSearch }) {
   const [open, setOpen] = useState(false);
-  const { sport,type,region,condition,model,size,price,state } = filters;
+  const { sport,type,region,club_state,condition,model,size,price,state } = filters;
+  const showClubFilter = type==="times" && region==="nacional";
   const set = (key,val) => setFilters(f=>({ ...f,[key]:f[key]===val?null:val }));
   const regionList = type ? REGIONS[type] : [];
-  const activeCount = [sport,type,region,condition,model,size,price&&price!=="all"?price:null,state].filter(Boolean).length;
+  const activeCount = [sport,type,region,club_state,condition,model,size,price&&price!=="all"?price:null,state].filter(Boolean).length;
+  const clubsForState = club_state ? (BR_CLUBS[club_state]||[]) : [];
   return (
     <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,padding:"14px 16px",marginBottom:18 }}>
       {/* Busca + botão filtros */}
@@ -286,7 +288,19 @@ export function FilterBar({ filters,setFilters,search,setSearch }) {
         </div>}
         {sport&&type&&<div style={{ marginBottom:10 }}>
           <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Região</p>
-          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{regionList.map(r=><Pill key={r.id} active={region===r.id} onClick={()=>set("region",r.id)}>{r.label}</Pill>)}</div>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{regionList.map(r=><Pill key={r.id} active={region===r.id} onClick={()=>{ set("region",r.id); setFilters(f=>({...f,club_state:null})); }}>{r.label}</Pill>)}</div>
+        </div>}
+        {showClubFilter&&<div style={{ marginBottom:10 }}>
+          <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Estado do clube</p>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+            {BR_STATES.filter(s=>BR_CLUBS[s.sigla]).map(s=>(
+              <Pill key={s.sigla} active={club_state===s.sigla} onClick={()=>setFilters(f=>({...f,club_state:f.club_state===s.sigla?null:s.sigla}))}>{s.sigla}</Pill>
+            ))}
+          </div>
+        </div>}
+        {showClubFilter&&club_state&&clubsForState.length>0&&<div style={{ marginBottom:10 }}>
+          <p style={{ margin:"0 0 7px",fontSize:11,fontWeight:600,color:C.gray400,textTransform:"uppercase",letterSpacing:.8 }}>Clube</p>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{clubsForState.map(c=><Pill key={c} active={filters.team===c} onClick={()=>setFilters(f=>({...f,team:f.team===c?null:c}))}>{c}</Pill>)}</div>
         </div>}
         <div style={{ height:1,background:C.gray100,margin:"10px 0" }} />
         <div style={{ display:"flex",flexWrap:"wrap",gap:14 }}>

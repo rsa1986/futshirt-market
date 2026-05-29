@@ -38,7 +38,7 @@ export default function App() {
   const [photoIdx,setPhotoIdx]   = useState(0);
   const [lightbox,setLightbox]   = useState(null);
   const [search,setSearch]       = useState("");
-  const [filters,setFilters]     = useState({ sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null });
+  const [filters,setFilters]     = useState({ sport:null,type:null,region:null,club_state:null,team:null,condition:null,model:null,size:null,price:null,state:null });
   const [sortBy,setSortBy]       = useState("relevancia");
   const [formStep,setFormStep]   = useState(1);
   const [formDone,setFormDone]   = useState(false);
@@ -303,6 +303,7 @@ export default function App() {
       type:form.type,region:form.region,description:form.description,photos:form.photos,status:form.status||"disponivel",
       acquisition_price:parseFloat(form.acquisition_price)||null,has_name:form.has_name||false,has_number:form.has_number||false,
       player_name:form.player_name||null,shirt_color:form.shirt_color||null,collection_note:form.collection_note||null,
+      club_state:form.club_state||null,
     };
     const { error } = editingShirtId
       ? await supabase.from("shirts").update(payload).eq("id",editingShirtId)
@@ -510,7 +511,9 @@ export default function App() {
       if(search&&!`${s.team} ${s.edition} ${s.country} ${s.year}`.toLowerCase().includes(search.toLowerCase())) return false;
       if(filters.state     && s.profiles?.state!==filters.state)  return false;
       if(filters.type      && s.type      !==filters.type)         return false;
-      if(filters.region    && s.region    !==filters.region)       return false;
+      if(filters.region    && s.region     !==filters.region)       return false;
+      if(filters.club_state && s.club_state !==filters.club_state)  return false;
+      if(filters.team      && s.team       !==filters.team)         return false;
       if(filters.condition && s.condition !==filters.condition)    return false;
       if(filters.model     && s.model     !==filters.model)        return false;
       if(filters.size      && s.size      !==filters.size)         return false;
@@ -871,7 +874,7 @@ export default function App() {
           </div>
           {shirtsLoading
             ?<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{[...Array(6)].map((_,i)=><SkeletonCard key={i} />)}</div>
-            :<><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>{filtered.length===0&&<EmptyState emoji="🔍" title="Nenhuma camiseta encontrada" sub="Tente outros filtros ou limpe a busca para ver todos os itens." action="Limpar filtros" onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }} />}</>
+            :<><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:14 }}>{filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>{filtered.length===0&&<EmptyState emoji="🔍" title="Nenhuma camiseta encontrada" sub="Tente outros filtros ou limpe a busca para ver todos os itens." action="Limpar filtros" onAction={()=>{ setFilters({sport:null,type:null,region:null,club_state:null,team:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }} />}</>
           }
         </>
       ):(
@@ -888,7 +891,7 @@ export default function App() {
             </div>
             {shirtsLoading
               ?<div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14 }}>{[...Array(6)].map((_,i)=><SkeletonCard key={i} />)}</div>
-              :<><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14 }}>{filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>{filtered.length===0&&<EmptyState emoji="🔍" title="Nenhuma camiseta encontrada" sub="Tente outros filtros ou limpe a busca para ver todos os itens." action="Limpar filtros" onAction={()=>{ setFilters({sport:null,type:null,region:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }} />}</>
+              :<><div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14 }}>{filtered.map(s=><ShirtCard key={s.id} s={s} wishlist={wishlist} toggleWishlist={toggleWishlist} onOpen={openShirt} />)}</div>{filtered.length===0&&<EmptyState emoji="🔍" title="Nenhuma camiseta encontrada" sub="Tente outros filtros ou limpe a busca para ver todos os itens." action="Limpar filtros" onAction={()=>{ setFilters({sport:null,type:null,region:null,club_state:null,team:null,condition:null,model:null,size:null,price:null,state:null}); setSearch(""); }} />}</>
             }
           </div>
         </div>

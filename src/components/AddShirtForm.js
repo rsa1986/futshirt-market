@@ -1,4 +1,4 @@
-import { C } from "./constants";
+import { C, BR_CLUBS, BR_STATES } from "./constants";
 import { ShirtPhoto, Tag } from "./ui";
 import PhotoUploader from "./PhotoUploader";
 
@@ -7,14 +7,19 @@ export default function AddShirtForm({
   formSaving, editingShirtId, isMobile, emptyForm,
   onBack, onNext, handleAddShirt,
 }) {
+  const isBrasil = form.type === "times" && form.region === "nacional";
+  const clubList = isBrasil && form.club_state ? (BR_CLUBS[form.club_state] || []) : [];
+  const isOtros = form.team === "__outros__";
+
   function validateStep1() {
     const errs = {};
-    if(!form.team.trim())                   errs.team      = "Obrigatório";
-    if(!form.price||parseFloat(form.price)<=0) errs.price  = "Informe um preço válido";
-    if(!form.condition)                     errs.condition = "Selecione a condição";
-    if(!form.size)                          errs.size      = "Selecione o tamanho";
-    if(!form.type)                          errs.type      = "Selecione a categoria";
-    if(!form.region)                        errs.region    = "Selecione a região";
+    if(!form.type)    errs.type      = "Selecione a categoria";
+    if(!form.region)  errs.region    = "Selecione a região";
+    if(isBrasil && !form.club_state) errs.club_state = "Selecione o estado";
+    if(!form.team.trim() || form.team === "__outros__") errs.team = "Informe o nome do time";
+    if(!form.price||parseFloat(form.price)<=0) errs.price = "Informe um preço válido";
+    if(!form.condition) errs.condition = "Selecione a condição";
+    if(!form.size)      errs.size      = "Selecione o tamanho";
     const yr = parseInt(form.year);
     if(form.year&&(yr<1900||yr>new Date().getFullYear()+1)) errs.year = "Ano inválido";
     if(form.price_old&&parseFloat(form.price_old)<=parseFloat(form.price||0)) errs.price_old = "Deve ser maior que o preço atual";
@@ -64,26 +69,117 @@ export default function AddShirtForm({
               ))}
             </div>
           </div>
-          {[["Time *","team","text"],["País *","country","text"],["Ano","year","number"],["Edição","edition","text"],["Preço (R$) *","price","number"],["Preço original","price_old","number"]].map(([l,k,t])=>(
+
+          {/* Categoria */}
+          <div>
+            <label style={{ fontSize:12,color:formErrors.type?C.red:C.gray600,display:"block",marginBottom:4 }}>Categoria *</label>
+            <select value={form.type} onChange={e=>{ setForm(f=>({...f,type:e.target.value,region:"",club_state:"",team:"",country:""})); setFormErrors(fe=>({...fe,type:null})); }}
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.type?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
+              <option value="">Selecione...</option>
+              <option value="times">🏟️ Time</option>
+              <option value="selecoes">🌎 Seleção</option>
+            </select>
+            {formErrors.type&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.type}</p>}
+          </div>
+
+          {/* Se Time: Região */}
+          {form.type==="times"&&<div>
+            <label style={{ fontSize:12,color:formErrors.region?C.red:C.gray600,display:"block",marginBottom:4 }}>Região *</label>
+            <select value={form.region} onChange={e=>{ setForm(f=>({...f,region:e.target.value,club_state:"",team:""})); setFormErrors(fe=>({...fe,region:null})); }}
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.region?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
+              <option value="">Selecione...</option>
+              <option value="nacional">🇧🇷 Nacional (Brasil)</option>
+              <option value="europa">🌍 Europa</option>
+              <option value="america_sul">🌎 América do Sul</option>
+              <option value="america_norte">🌐 América do Norte</option>
+              <option value="africa">🌍 África</option>
+              <option value="asia">🌏 Ásia</option>
+            </select>
+            {formErrors.region&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.region}</p>}
+          </div>}
+
+          {/* Se Seleção: País */}
+          {form.type==="selecoes"&&<div>
+            <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>País *</label>
+            <input value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value,country:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+              placeholder="Ex: Brasil, Argentina, França..."
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+            {formErrors.team&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.team}</p>}
+          </div>}
+
+          {/* Se Time Nacional: Estado do clube */}
+          {isBrasil&&<div>
+            <label style={{ fontSize:12,color:formErrors.club_state?C.red:C.gray600,display:"block",marginBottom:4 }}>Estado do clube *</label>
+            <select value={form.club_state} onChange={e=>{ setForm(f=>({...f,club_state:e.target.value,team:""})); setFormErrors(fe=>({...fe,club_state:null})); }}
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.club_state?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
+              <option value="">Selecione...</option>
+              {BR_STATES.map(s=><option key={s.sigla} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
+            </select>
+            {formErrors.club_state&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.club_state}</p>}
+          </div>}
+
+          {/* Se Time Nacional + Estado: Nome do clube */}
+          {isBrasil&&form.club_state&&<div style={{ gridColumn:isMobile?"auto":"1/-1" }}>
+            <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Clube *</label>
+            {clubList.length>0?(
+              <select value={isOtros?"__outros__":form.team}
+                onChange={e=>{ setForm(f=>({...f,team:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
+                <option value="">Selecione...</option>
+                {clubList.map(c=><option key={c} value={c}>{c}</option>)}
+                <option value="__outros__">Outros (digitar manualmente)</option>
+              </select>
+            ):(
+              <input value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+                placeholder="Nome do clube..."
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+            )}
+            {formErrors.team&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.team}</p>}
+          </div>}
+
+          {/* Campo livre para "Outros" */}
+          {isBrasil&&isOtros&&<div style={{ gridColumn:isMobile?"auto":"1/-1" }}>
+            <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Nome do clube *</label>
+            <input placeholder="Digite o nome do clube..."
+              onChange={e=>{ setForm(f=>({...f,team:e.target.value==="__outros__"?"":e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+          </div>}
+
+          {/* Se Time internacional: País + Nome do time */}
+          {form.type==="times"&&form.region&&form.region!=="nacional"&&<>
+            <div>
+              <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>País</label>
+              <input value={form.country} onChange={e=>setForm(f=>({...f,country:e.target.value}))}
+                placeholder="Ex: Espanha, Inglaterra..."
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+            </div>
+            <div>
+              <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Nome do time *</label>
+              <input value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+                placeholder="Ex: Real Madrid, Manchester City..."
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+              {formErrors.team&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.team}</p>}
+            </div>
+          </>}
+
+          {/* Campos comuns */}
+          {[["Ano","year","number"],["Edição","edition","text"],["Preço (R$) *","price","number"],["Preço original","price_old","number"]].map(([l,k,t])=>(
             <div key={k} style={{ gridColumn:(!isMobile&&k==="price_old")?"1/-1":"auto" }}>
-              <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>{l}</label>
+              <label style={{ fontSize:12,color:formErrors[k]?C.red:C.gray600,display:"block",marginBottom:4 }}>{l}</label>
               <input type={t} value={form[k]} onChange={e=>{ setForm(f=>({...f,[k]:e.target.value})); if(formErrors[k]) setFormErrors(fe=>({...fe,[k]:null})); }}
                 style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors[k]?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
               {formErrors[k]&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors[k]}</p>}
             </div>
           ))}
           {[
-            ["Categoria *","type",[["","Selecione..."],["times","Times"],["selecoes","Seleções"]]],
-            ["Região *","region",[["","Selecione..."],["nacional","Nacional (Brasil)"],["europa","Europa"],["america_sul","América do Sul"],["america_norte","América do Norte"],["africa","África"],["asia","Ásia"]]],
             ["Condição *","condition",[["","Selecione..."],["Nova","Nova"],["Usada","Usada"]]],
             ["Tamanho *","size",[["","Selecione..."],["PP","PP"],["P","P"],["M","M"],["G","G"],["GG","GG"]]],
             ["Tipo (modelo)","model",[["","Selecione..."],["Modelo Jogador","Modelo Jogador"],["Modelo Torcedor","Modelo Torcedor"],["Utilizado em Jogo","Utilizado em Jogo"]]],
           ].map(([l,k,opts])=>(
             <div key={k}>
               <label style={{ fontSize:12,color:formErrors[k]?C.red:C.gray600,display:"block",marginBottom:4 }}>{l}</label>
-              <select value={form[k]}
-                onChange={e=>{ setForm(f=>({...f,[k]:e.target.value})); if(formErrors[k]) setFormErrors(fe=>({...fe,[k]:null})); }}
-                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors[k]?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box",color:form[k]?C.gray900:"#9ca3af" }}>
+              <select value={form[k]} onChange={e=>{ setForm(f=>({...f,[k]:e.target.value})); if(formErrors[k]) setFormErrors(fe=>({...fe,[k]:null})); }}
+                style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors[k]?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
                 {opts.map(([v,lbl])=><option key={v} value={v}>{lbl}</option>)}
               </select>
               {formErrors[k]&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors[k]}</p>}

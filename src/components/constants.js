@@ -34,6 +34,23 @@ export const BR_STATES  = [
   {sigla:"RO",nome:"Rondônia"},{sigla:"RR",nome:"Roraima"},{sigla:"SC",nome:"Santa Catarina"},
   {sigla:"SP",nome:"São Paulo"},{sigla:"SE",nome:"Sergipe"},{sigla:"TO",nome:"Tocantins"},
 ];
+export const BR_CLUBS = {
+  SP: ["Água Santa","Botafogo SP","Corinthians","Ferroviária","Guarani","Inter de Limeira","Ituano","Mirassol","Novorizontino","Palmeiras","Ponte Preta","Portuguesa","Red Bull Bragantino","Santo André","Santos","São Bernardo","São Caetano","São Paulo"],
+  RJ: ["Botafogo","Flamengo","Fluminense","Madureira","Nova Iguaçu","Vasco da Gama"],
+  MG: ["América Mineiro","Athletic Club","Atlético Mineiro","Cruzeiro","Tombense"],
+  RS: ["Brasil de Pelotas","Caxias","Grêmio","Internacional","Juventude"],
+  PR: ["Athletico Paranaense","Coritiba","Londrina","Maringá","Paraná Clube"],
+  BA: ["Bahia","Vitória"],
+  PE: ["Náutico","Santa Cruz","Sport Recife"],
+  CE: ["Ceará","Fortaleza"],
+  SC: ["Avaí","Brusque","Chapecoense","Criciúma","Figueirense","Joinville"],
+  GO: ["Atlético Goianiense","Goiás"],
+  PA: ["Paysandu","Remo"],
+  MA: ["Sampaio Corrêa"],
+  AL: ["CRB","CSA"],
+  RN: ["ABC"],
+};
+
 export const BOOST_PRICE = "R$ 9,90";
 export const BOOST_DAYS  = 7;
 
@@ -63,7 +80,7 @@ export const PROFANITY = ["porra","merda","caralho","fdp","foda","foder","viado"
 
 export const emptyForm = {
   team:"",country:"",year:"",edition:"",condition:"",price:"",price_old:"",size:"",model:"",
-  type:"",region:"",description:"",photos:[],status:"disponivel",
+  type:"",region:"",club_state:"",description:"",photos:[],status:"disponivel",
   acquisition_price:"",has_name:false,has_number:false,player_name:"",shirt_color:"",collection_note:""
 };
 
