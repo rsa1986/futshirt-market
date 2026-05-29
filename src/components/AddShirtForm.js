@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { C, BR_CLUBS, BR_STATES, NATIONAL_TEAMS } from "./constants";
 import { ShirtPhoto, Tag } from "./ui";
 import PhotoUploader from "./PhotoUploader";
@@ -7,9 +8,9 @@ export default function AddShirtForm({
   formSaving, editingShirtId, isMobile, emptyForm,
   onBack, onNext, handleAddShirt,
 }) {
+  const [otrosMode, setOtrosMode] = useState(false);
   const isBrasil = form.type === "times" && form.region === "nacional";
   const clubList = isBrasil && form.club_state ? (BR_CLUBS[form.club_state] || []) : [];
-  const isOtros = form.team === "__outros__";
 
   function validateStep1() {
     const errs = {};
@@ -73,7 +74,7 @@ export default function AddShirtForm({
           {/* Categoria */}
           <div>
             <label style={{ fontSize:12,color:formErrors.type?C.red:C.gray600,display:"block",marginBottom:4 }}>Categoria *</label>
-            <select value={form.type} onChange={e=>{ setForm(f=>({...f,type:e.target.value,region:"",club_state:"",team:"",country:""})); setFormErrors(fe=>({...fe,type:null})); }}
+            <select value={form.type} onChange={e=>{ setOtrosMode(false); setForm(f=>({...f,type:e.target.value,region:"",club_state:"",team:"",country:""})); setFormErrors(fe=>({...fe,type:null})); }}
               style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.type?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
               <option value="">Selecione...</option>
               <option value="times">🏟️ Time</option>
@@ -85,7 +86,7 @@ export default function AddShirtForm({
           {/* Se Time: Região */}
           {form.type==="times"&&<div>
             <label style={{ fontSize:12,color:formErrors.region?C.red:C.gray600,display:"block",marginBottom:4 }}>Região *</label>
-            <select value={form.region} onChange={e=>{ setForm(f=>({...f,region:e.target.value,club_state:"",team:""})); setFormErrors(fe=>({...fe,region:null})); }}
+            <select value={form.region} onChange={e=>{ setOtrosMode(false); setForm(f=>({...f,region:e.target.value,club_state:"",team:""})); setFormErrors(fe=>({...fe,region:null})); }}
               style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.region?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
               <option value="">Selecione...</option>
               <option value="nacional">🇧🇷 Nacional (Brasil)</option>
@@ -127,7 +128,7 @@ export default function AddShirtForm({
           {/* Se Time Nacional: Estado do clube */}
           {isBrasil&&<div>
             <label style={{ fontSize:12,color:formErrors.club_state?C.red:C.gray600,display:"block",marginBottom:4 }}>Estado do clube *</label>
-            <select value={form.club_state} onChange={e=>{ setForm(f=>({...f,club_state:e.target.value,team:""})); setFormErrors(fe=>({...fe,club_state:null})); }}
+            <select value={form.club_state} onChange={e=>{ setOtrosMode(false); setForm(f=>({...f,club_state:e.target.value,team:""})); setFormErrors(fe=>({...fe,club_state:null})); }}
               style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.club_state?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
               <option value="">Selecione...</option>
               {BR_STATES.map(s=><option key={s.sigla} value={s.sigla}>{s.nome} ({s.sigla})</option>)}
@@ -139,12 +140,12 @@ export default function AddShirtForm({
           {isBrasil&&form.club_state&&<div style={{ gridColumn:isMobile?"auto":"1/-1" }}>
             <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Clube *</label>
             {clubList.length>0?(
-              <select value={isOtros?"__outros__":form.team}
-                onChange={e=>{ setForm(f=>({...f,team:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+              <select value={otrosMode?"__outros__":form.team}
+                onChange={e=>{ if(e.target.value==="__outros__"){ setOtrosMode(true); setForm(f=>({...f,team:""})); } else { setOtrosMode(false); setForm(f=>({...f,team:e.target.value})); } setFormErrors(fe=>({...fe,team:null})); }}
                 style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
                 <option value="">Selecione...</option>
                 {clubList.map(c=><option key={c} value={c}>{c}</option>)}
-                <option value="__outros__">Outros (digitar manualmente)</option>
+                <option value="__outros__">Outros (digitar)</option>
               </select>
             ):(
               <input value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
@@ -155,10 +156,10 @@ export default function AddShirtForm({
           </div>}
 
           {/* Campo livre para "Outros" */}
-          {isBrasil&&isOtros&&<div style={{ gridColumn:isMobile?"auto":"1/-1" }}>
+          {isBrasil&&otrosMode&&<div style={{ gridColumn:isMobile?"auto":"1/-1" }}>
             <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Nome do clube *</label>
-            <input placeholder="Digite o nome do clube..."
-              onChange={e=>{ setForm(f=>({...f,team:e.target.value==="__outros__"?"":e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
+            <input value={form.team} placeholder="Digite o nome do clube..."
+              onChange={e=>{ setForm(f=>({...f,team:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
               style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
           </div>}
 
