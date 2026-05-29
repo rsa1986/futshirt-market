@@ -13,8 +13,8 @@ export default function AddShirtForm({
 
   function validateStep1() {
     const errs = {};
-    if(!form.type)    errs.type      = "Selecione a categoria";
-    if(!form.region)  errs.region    = "Selecione a região";
+    if(!form.type)   errs.type   = "Selecione a categoria";
+    if(!form.region) errs.region = form.type==="selecoes" ? "Selecione o continente" : "Selecione a região";
     if(isBrasil && !form.club_state) errs.club_state = "Selecione o estado";
     if(!form.team.trim() || form.team === "__outros__") errs.team = "Informe o nome do time";
     if(!form.price||parseFloat(form.price)<=0) errs.price = "Informe um preço válido";
@@ -98,9 +98,24 @@ export default function AddShirtForm({
             {formErrors.region&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.region}</p>}
           </div>}
 
-          {/* Se Seleção: País */}
+          {/* Se Seleção: Continente */}
           {form.type==="selecoes"&&<div>
-            <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>País *</label>
+            <label style={{ fontSize:12,color:formErrors.region?C.red:C.gray600,display:"block",marginBottom:4 }}>Continente *</label>
+            <select value={form.region} onChange={e=>{ setForm(f=>({...f,region:e.target.value})); setFormErrors(fe=>({...fe,region:null})); }}
+              style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.region?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }}>
+              <option value="">Selecione...</option>
+              <option value="america_sul">🌎 América do Sul</option>
+              <option value="europa">🌍 Europa</option>
+              <option value="africa">🌍 África</option>
+              <option value="america_norte">🌐 América do Norte</option>
+              <option value="asia">🌏 Ásia</option>
+            </select>
+            {formErrors.region&&<p style={{ margin:"3px 0 0",fontSize:11,color:C.red }}>{formErrors.region}</p>}
+          </div>}
+
+          {/* Se Seleção + Continente: Nome da seleção */}
+          {form.type==="selecoes"&&form.region&&<div>
+            <label style={{ fontSize:12,color:formErrors.team?C.red:C.gray600,display:"block",marginBottom:4 }}>Seleção *</label>
             <input value={form.team} onChange={e=>{ setForm(f=>({...f,team:e.target.value,country:e.target.value})); setFormErrors(fe=>({...fe,team:null})); }}
               placeholder="Ex: Brasil, Argentina, França..."
               style={{ width:"100%",padding:"9px 12px",border:`1px solid ${formErrors.team?C.red:C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
