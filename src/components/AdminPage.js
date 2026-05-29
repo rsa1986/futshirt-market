@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { supabase } from "../supabase";
 import { C, BANNER_THEMES, SIZES, REGIONS, isBoosted, BOOST_DAYS, parseImg, buildImgField, parsePosition, parseDeepLink, buildDeepLink, isUrl } from "./constants";
 import { Avatar, ShirtPhoto, SectionHead } from "./ui";
@@ -5,18 +6,21 @@ import { Avatar, ShirtPhoto, SectionHead } from "./ui";
 export default function AdminPage({
   user, sellers, shirts, adminTab, setAdminTab,
   banners, adminBannerEdit, setAdminBannerEdit, bannerSaving, bannerErrors, setBannerErrors,
-  adminQuestions, adminNotifs,
+  adminQuestions, adminNotifs, sitePages,
   handleToggleBlock, handleDeleteShirt, handleSaveBanner,
   handleActivateBoost, handleDeactivateBoost,
-  loadAdminQuestions, loadAdminNotifs, addToast,
+  loadAdminQuestions, loadAdminNotifs, handleSavePage, addToast,
 }) {
+  const [editingPage, setEditingPage] = useState(null);
+  const [pageForm, setPageForm] = useState({ title:"", content:"" });
+  const [pageSaving, setPageSaving] = useState(false);
   return (
     <>
       <SectionHead icon="⚙️" sub="administração" title="Painel de Controle" />
 
       <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8,flexWrap:"wrap" }}>
-        {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["boosts","⚡ Boosts"],["banners","🖼️ Banners"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
-          <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); if(v==="emails") loadAdminNotifs(); }}
+        {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["boosts","⚡ Boosts"],["banners","🖼️ Banners"],["pages","📄 Páginas"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
+          <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); if(v==="emails") loadAdminNotifs(); if(v==="pages") setEditingPage(null); }}
             style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
         ))}
       </div>
@@ -417,6 +421,52 @@ export default function AdminPage({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Tab: Páginas */}
+      {adminTab==="pages"&&(
+        <div>
+          {!editingPage ? (
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {(sitePages||[]).map(p=>(
+                <div key={p.slug} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,padding:"14px 16px",display:"flex",alignItems:"center",gap:12 }}>
+                  <div style={{ flex:1 }}>
+                    <p style={{ margin:"0 0 2px",fontWeight:600,fontSize:14,color:C.gray900 }}>{p.title}</p>
+                    <p style={{ margin:0,fontSize:12,color:C.gray400 }}>{p.slug} · atualizado {new Date(p.updated_at).toLocaleDateString("pt-BR")}</p>
+                  </div>
+                  <button onClick={()=>{ setEditingPage(p.slug); setPageForm({ title:p.title, content:p.content }); }}
+                    style={{ padding:"7px 16px",border:`1px solid ${C.green}`,borderRadius:9,background:C.greenLight,color:C.greenDark,fontSize:13,fontWeight:600,cursor:"pointer" }}>
+                    ✏️ Editar
+                  </button>
+                </div>
+              ))}
+              {(!sitePages||sitePages.length===0)&&<p style={{ color:C.gray400,fontSize:14 }}>Nenhuma página encontrada. Execute o SQL de criação da tabela site_pages.</p>}
+            </div>
+          ) : (
+            <div>
+              <button onClick={()=>setEditingPage(null)} style={{ background:"none",border:"none",color:C.gray400,fontSize:13,cursor:"pointer",padding:"0 0 16px" }}>← Voltar para lista</button>
+              <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:14,padding:"1.5rem",display:"flex",flexDirection:"column",gap:14 }}>
+                <div>
+                  <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Título</label>
+                  <input value={pageForm.title} onChange={e=>setPageForm(f=>({...f,title:e.target.value}))}
+                    style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Conteúdo</label>
+                  <p style={{ margin:"0 0 6px",fontSize:11,color:C.gray400 }}>Use linhas em branco para separar parágrafos. Letras maiúsculas para títulos internos.</p>
+                  <textarea value={pageForm.content} onChange={e=>setPageForm(f=>({...f,content:e.target.value}))}
+                    rows={20}
+                    style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:13,boxSizing:"border-box",resize:"vertical",fontFamily:"system-ui",lineHeight:1.6 }} />
+                </div>
+                <button onClick={async()=>{ setPageSaving(true); await handleSavePage(editingPage, pageForm.title, pageForm.content); setPageSaving(false); }}
+                  disabled={pageSaving}
+                  style={{ padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,fontWeight:600,fontSize:14,cursor:"pointer",opacity:pageSaving?.7:1 }}>
+                  {pageSaving?"Salvando...":"💾 Salvar página"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -431,6 +431,19 @@ export function Footer({ onNavigate }) {
           <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Vendedores</p>
           <div><span onClick={()=>onNavigate("sellers")} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>Ver todos os vendedores</span></div>
           <div><span onClick={()=>onNavigate("addProduct")} style={{ fontSize:13,color:"#16a34a",cursor:"pointer",display:"block",lineHeight:2,fontWeight:600 }}>+ Anunciar camiseta</span></div>
+          <div><span onClick={()=>onNavigate("page-como-vender")} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>Como Vender</span></div>
+        </div>
+        <div>
+          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Institucional</p>
+          {[["page-quem-somos","Quem Somos"],["page-como-funciona","Como Funciona"],["page-faq","FAQ"]].map(([v,l])=>(
+            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>{l}</span></div>
+          ))}
+        </div>
+        <div>
+          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Legal</p>
+          {[["page-termos-de-uso","Termos de Uso"],["page-politica-de-privacidade","Política de Privacidade"]].map(([v,l])=>(
+            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>{l}</span></div>
+          ))}
         </div>
         <div>
           <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Confiança</p>

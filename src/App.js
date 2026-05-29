@@ -16,6 +16,7 @@ import ShirtDetail from "./components/ShirtDetail";
 import AddShirtForm from "./components/AddShirtForm";
 import MyProfile from "./components/MyProfile";
 import AdminPage from "./components/AdminPage";
+import StaticPage from "./components/StaticPage";
 
 /* ══ MAIN APP ══ */
 export default function App() {
@@ -78,6 +79,8 @@ export default function App() {
   const [answerLoading,setAnswerLoading] = useState(null);
   const [adminQuestions,setAdminQuestions] = useState([]);
   const [adminNotifs,setAdminNotifs]   = useState([]);
+  const [sitePages,setSitePages]       = useState([]);
+  const [currentPage,setCurrentPage]   = useState(null);
   const [boostModal,setBoostModal]     = useState(null);
   const [boostLoading,setBoostLoading] = useState(false);
   const [alertTerms,setAlertTerms]     = useState(()=>{ try{return JSON.parse(localStorage.getItem("fsm_alerts")||"[]");}catch{return [];} });
@@ -107,7 +110,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{ if(user) loadNotifications(); },[user]);
 
-  useEffect(()=>{ loadShirts(); loadBanners();
+  useEffect(()=>{ loadShirts(); loadBanners(); loadSitePages();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
@@ -204,6 +207,17 @@ export default function App() {
   async function loadFollows(uid) {
     const { data } = await supabase.from("follows").select("following_id").eq("follower_id",uid);
     setFollows((data||[]).map(r=>r.following_id));
+  }
+  async function loadSitePages() {
+    const { data } = await supabase.from("site_pages").select("*").order("slug");
+    if(data) setSitePages(data);
+  }
+  async function handleSavePage(slug, title, content) {
+    const { error } = await supabase.from("site_pages")
+      .update({ title, content, updated_at: new Date().toISOString() })
+      .eq("slug", slug);
+    if(!error){ setSitePages(ps=>ps.map(p=>p.slug===slug?{...p,title,content}:p)); addToast("Página salva!"); }
+    else addToast("Erro ao salvar página","error");
   }
   async function loadAdminNotifs() {
     const { data } = await supabase.from("email_notifications").select("*").order("created_at",{ ascending:false }).limit(100);
@@ -667,6 +681,12 @@ export default function App() {
   function navigate(target) {
     window.history.pushState(null,"",target==="home"?"#":`#${target}`);
     setPage(target); setSellerSlug(null); setSellerProfile(null); setSelectedId(null); setSelectedShirt(null);
+    if(target.startsWith("page-")) {
+      const slug = target.replace("page-","");
+      setCurrentPage(sitePages.find(p=>p.slug===slug)||null);
+    } else {
+      setCurrentPage(null);
+    }
   }
   function deepNavigate(link) {
     if(!link){ navigate("catalog"); return; }
@@ -1061,8 +1081,15 @@ export default function App() {
       handleToggleBlock={handleToggleBlock} handleDeleteShirt={handleDeleteShirt}
       handleSaveBanner={handleSaveBanner} handleActivateBoost={handleActivateBoost}
       handleDeactivateBoost={handleDeactivateBoost}
-      loadAdminQuestions={loadAdminQuestions} loadAdminNotifs={loadAdminNotifs} addToast={addToast}
+      loadAdminQuestions={loadAdminQuestions} loadAdminNotifs={loadAdminNotifs}
+      sitePages={sitePages} handleSavePage={handleSavePage} addToast={addToast}
     />
+  );
+
+  // ── PÁGINAS ESTÁTICAS ──
+  if(page.startsWith("page-")) return wrap(
+    <StaticPage page={currentPage} onBack={()=>navigate("home")} />,
+    760
   );
 
   return null;
