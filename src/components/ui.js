@@ -199,7 +199,7 @@ export function BannerCarousel({ onCta, banners }) {
 export function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
   const disc      = s.price_old ? Math.round((1 - s.price / s.price_old) * 100) : 0;
   const photo     = (s.photos || [])[0] || "⚽";
-  const isNew     = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 48 * 60 * 60 * 1000;
+  const isNew     = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 24 * 60 * 60 * 1000;
   const boosted   = isBoosted(s);
   return (
     <div onClick={() => onOpen(s.id)} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,overflow:"hidden",cursor:"pointer",display:"flex",flexDirection:"column" }}>
