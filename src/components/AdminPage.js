@@ -11,16 +11,53 @@ export default function AdminPage({
   handleActivateBoost, handleDeactivateBoost,
   loadAdminQuestions, loadAdminNotifs, handleSavePage, addToast,
 }) {
-  const [editingPage, setEditingPage] = useState(null);
-  const [pageForm, setPageForm] = useState({ title:"", content:"" });
-  const [pageSaving, setPageSaving] = useState(false);
+  const [editingPage,  setEditingPage]  = useState(null);
+  const [pageForm,     setPageForm]     = useState({ title:"", content:"" });
+  const [pageSaving,   setPageSaving]   = useState(false);
+
+  const [clubPages,    setClubPages]    = useState([]);
+  const [editingClub,  setEditingClub]  = useState(null);
+  const [clubForm,     setClubForm]     = useState({ custom_title:"", custom_description:"", banner_url:"" });
+  const [clubSaving,   setClubSaving]   = useState(false);
+  const [clubLoading,  setClubLoading]  = useState(false);
+
+  const CLUBS_META = [
+    { name:"Flamengo",         slug:"flamengo"         },
+    { name:"Corinthians",      slug:"corinthians"      },
+    { name:"Palmeiras",        slug:"palmeiras"        },
+    { name:"São Paulo",        slug:"sao-paulo"        },
+    { name:"Vasco da Gama",    slug:"vasco"            },
+    { name:"Grêmio",           slug:"gremio"           },
+    { name:"Internacional",    slug:"internacional"    },
+    { name:"Atlético Mineiro", slug:"atletico-mineiro" },
+    { name:"Cruzeiro",         slug:"cruzeiro"         },
+    { name:"Santos",           slug:"santos"           },
+    { name:"Botafogo",         slug:"botafogo"         },
+    { name:"Fluminense",       slug:"fluminense"       },
+    { name:"Brasil",           slug:"brasil"           },
+  ];
+
+  async function loadClubPages() {
+    setClubLoading(true);
+    const { data } = await supabase.from("club_pages").select("*");
+    setClubPages(data || []);
+    setClubLoading(false);
+  }
+
+  async function saveClubPage() {
+    setClubSaving(true);
+    await supabase.from("club_pages").upsert({ slug: editingClub, ...clubForm, updated_at: new Date().toISOString() });
+    await loadClubPages();
+    setClubSaving(false);
+    addToast("Página salva com sucesso!", "success");
+  }
   return (
     <>
       <SectionHead icon="⚙️" sub="administração" title="Painel de Controle" />
 
       <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${C.gray200}`,paddingBottom:8,flexWrap:"wrap" }}>
-        {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["boosts","⚡ Boosts"],["banners","🖼️ Banners"],["pages","📄 Páginas"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
-          <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); if(v==="emails") loadAdminNotifs(); if(v==="pages") setEditingPage(null); }}
+        {[["users","👥 Usuários"],["shirts","🏷️ Anúncios"],["boosts","⚡ Boosts"],["banners","🖼️ Banners"],["pages","📄 Páginas"],["times","🏟️ Times"],["questions","❓ Perguntas"],["emails","📧 E-mails"]].map(([v,l])=>(
+          <button key={v} onClick={()=>{ setAdminTab(v); if(v==="questions") loadAdminQuestions(); if(v==="emails") loadAdminNotifs(); if(v==="pages") setEditingPage(null); if(v==="times"){ setEditingClub(null); loadClubPages(); } }}
             style={{ padding:"7px 16px",borderRadius:8,border:"none",background:adminTab===v?C.greenLight:"none",color:adminTab===v?C.green:C.gray600,fontWeight:adminTab===v?600:400,cursor:"pointer",fontSize:13 }}>{l}</button>
         ))}
       </div>
@@ -467,6 +504,92 @@ export default function AdminPage({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab: Times */}
+      {adminTab==="times"&&(
+        <div>
+          {!editingClub ? (
+            <>
+              {clubLoading&&<p style={{ color:C.gray400,fontSize:14 }}>Carregando...</p>}
+              <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                {CLUBS_META.map(club=>{
+                  const cfg = clubPages.find(p=>p.slug===club.slug);
+                  const hasCustom = cfg && (cfg.custom_title||cfg.banner_url||cfg.custom_description);
+                  return (
+                    <div key={club.slug} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,padding:"14px 16px",display:"flex",alignItems:"center",gap:12 }}>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <p style={{ margin:"0 0 2px",fontWeight:600,fontSize:14,color:C.gray900 }}>{club.name}</p>
+                        <p style={{ margin:0,fontSize:12,color:C.gray400 }}>
+                          /times/{club.slug}
+                          {hasCustom&&<span style={{ marginLeft:8,color:C.green,fontWeight:600 }}>● customizado</span>}
+                        </p>
+                      </div>
+                      <a href={`https://futshirt-market.vercel.app/times/${club.slug}`} target="_blank" rel="noreferrer"
+                        style={{ padding:"6px 12px",borderRadius:8,border:`1px solid ${C.gray200}`,background:C.gray50,color:C.gray600,fontSize:12,textDecoration:"none" }}>
+                        👁️ Ver
+                      </a>
+                      <button onClick={()=>{ setEditingClub(club.slug); setClubForm({ custom_title:cfg?.custom_title||"", custom_description:cfg?.custom_description||"", banner_url:cfg?.banner_url||"" }); }}
+                        style={{ padding:"6px 14px",border:`1px solid ${C.green}`,borderRadius:9,background:C.greenLight,color:C.greenDark,fontSize:13,fontWeight:600,cursor:"pointer" }}>
+                        ✏️ Editar
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (()=>{
+            const club = CLUBS_META.find(c=>c.slug===editingClub);
+            return (
+              <div>
+                <button onClick={()=>setEditingClub(null)} style={{ background:"none",border:"none",color:C.gray400,fontSize:13,cursor:"pointer",padding:"0 0 16px" }}>← Voltar para lista</button>
+                <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:14,padding:"1.5rem",display:"flex",flexDirection:"column",gap:16 }}>
+                  <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                    <p style={{ margin:0,fontWeight:700,fontSize:16 }}>🏟️ {club?.name}</p>
+                    <a href={`https://futshirt-market.vercel.app/times/${editingClub}`} target="_blank" rel="noreferrer"
+                      style={{ fontSize:12,color:C.green,textDecoration:"none" }}>
+                      Ver página →
+                    </a>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Título customizado</label>
+                    <p style={{ margin:"0 0 6px",fontSize:11,color:C.gray400 }}>Deixe vazio para usar o padrão: "Camisetas do {club?.name}"</p>
+                    <input value={clubForm.custom_title} onChange={e=>setClubForm(f=>({...f,custom_title:e.target.value}))}
+                      placeholder={`Camisetas do ${club?.name} | FutShirt Market`}
+                      style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:14,boxSizing:"border-box" }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>Descrição customizada</label>
+                    <textarea value={clubForm.custom_description} onChange={e=>setClubForm(f=>({...f,custom_description:e.target.value}))}
+                      placeholder="Texto que aparece abaixo do título na página..."
+                      rows={3}
+                      style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:13,boxSizing:"border-box",resize:"vertical",fontFamily:"system-ui",lineHeight:1.6 }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize:12,color:C.gray600,display:"block",marginBottom:4 }}>URL do banner</label>
+                    <p style={{ margin:"0 0 6px",fontSize:11,color:C.gray400 }}>Link de uma imagem para usar como fundo do cabeçalho da página. Recomendado: 1200×400px.</p>
+                    <input value={clubForm.banner_url} onChange={e=>setClubForm(f=>({...f,banner_url:e.target.value}))}
+                      placeholder="https://..."
+                      style={{ width:"100%",padding:"9px 12px",border:`1px solid ${C.gray200}`,borderRadius:10,fontSize:13,boxSizing:"border-box" }} />
+                    {clubForm.banner_url&&(
+                      <div style={{ marginTop:8,borderRadius:10,overflow:"hidden",maxHeight:120 }}>
+                        <img src={clubForm.banner_url} alt="Preview do banner" style={{ width:"100%",height:120,objectFit:"cover" }} onError={e=>e.target.style.display="none"} />
+                      </div>
+                    )}
+                  </div>
+
+                  <button onClick={saveClubPage} disabled={clubSaving}
+                    style={{ padding:"11px 0",border:"none",borderRadius:12,background:C.green,color:C.white,fontWeight:600,fontSize:14,cursor:"pointer",opacity:clubSaving?.7:1 }}>
+                    {clubSaving?"Salvando...":"💾 Salvar"}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

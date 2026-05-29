@@ -175,6 +175,33 @@ function buildPage(club, shirts) {
     </p>
   </div>
 
+  <script>
+  (async () => {
+    try {
+      const res = await fetch('${SUPABASE_URL}/rest/v1/club_pages?slug=eq.${club.slug}&select=custom_title,custom_description,banner_url', {
+        headers: { apikey: '${ANON_KEY}', Authorization: 'Bearer ${ANON_KEY}' }
+      });
+      const [cfg] = await res.json();
+      if (!cfg) return;
+      if (cfg.custom_title) {
+        document.title = cfg.custom_title + ' | FutShirt Market';
+        document.querySelector('.hero h1').textContent = cfg.custom_title;
+        document.querySelector('meta[property="og:title"]').content = cfg.custom_title;
+      }
+      if (cfg.custom_description) {
+        document.querySelector('.hero p').textContent = cfg.custom_description;
+        document.querySelector('meta[name="description"]').content = cfg.custom_description;
+      }
+      if (cfg.banner_url) {
+        const hero = document.querySelector('.hero');
+        hero.style.backgroundImage = 'linear-gradient(rgba(5,46,22,.75),rgba(5,46,22,.75)), url(' + cfg.banner_url + ')';
+        hero.style.backgroundSize = 'cover';
+        hero.style.backgroundPosition = 'center';
+      }
+    } catch(e) {}
+  })();
+  </script>
+
   <footer class="footer">
     <p>© ${new Date().getFullYear()} <a href="${SITE}">FutShirt Market</a> — Marketplace de camisetas de futebol</p>
   </footer>

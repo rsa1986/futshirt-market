@@ -106,6 +106,33 @@
     </p>
   </div>
 
+  <script>
+  (async () => {
+    try {
+      const res = await fetch('https://cycxfdhcfxjsrikwqknw.supabase.co/rest/v1/club_pages?slug=eq.vasco&select=custom_title,custom_description,banner_url', {
+        headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Y3hmZGhjZnhqc3Jpa3dxa253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NDc2NjMsImV4cCI6MjA5NTMyMzY2M30.bn2wIPn_NKyN6Ufv9EiiswDZKmKOKx3VT1FGUNr0HTo', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Y3hmZGhjZnhqc3Jpa3dxa253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NDc2NjMsImV4cCI6MjA5NTMyMzY2M30.bn2wIPn_NKyN6Ufv9EiiswDZKmKOKx3VT1FGUNr0HTo' }
+      });
+      const [cfg] = await res.json();
+      if (!cfg) return;
+      if (cfg.custom_title) {
+        document.title = cfg.custom_title + ' | FutShirt Market';
+        document.querySelector('.hero h1').textContent = cfg.custom_title;
+        document.querySelector('meta[property="og:title"]').content = cfg.custom_title;
+      }
+      if (cfg.custom_description) {
+        document.querySelector('.hero p').textContent = cfg.custom_description;
+        document.querySelector('meta[name="description"]').content = cfg.custom_description;
+      }
+      if (cfg.banner_url) {
+        const hero = document.querySelector('.hero');
+        hero.style.backgroundImage = 'linear-gradient(rgba(5,46,22,.75),rgba(5,46,22,.75)), url(' + cfg.banner_url + ')';
+        hero.style.backgroundSize = 'cover';
+        hero.style.backgroundPosition = 'center';
+      }
+    } catch(e) {}
+  })();
+  </script>
+
   <footer class="footer">
     <p>© 2026 <a href="https://futshirt-market.vercel.app">FutShirt Market</a> — Marketplace de camisetas de futebol</p>
   </footer>
