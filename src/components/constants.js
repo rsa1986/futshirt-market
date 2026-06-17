@@ -1,9 +1,17 @@
 /* ── TOKENS ── */
 export const C = {
+  // Greens
   green:"#16a34a", greenLight:"#dcfce7", greenDark:"#14532d",
-  gray50:"#f9fafb", gray100:"#f3f4f6", gray200:"#e5e7eb",
-  gray400:"#9ca3af", gray600:"#4b5563", gray900:"#111827",
-  white:"#ffffff", red:"#ef4444", redLight:"#fef2f2",
+  greenHover:"#15803d", greenBright:"#4ade80",
+  // Dark surfaces (navbar / footer)
+  navBg:"#0d1a10", footerBg:"#061209", navBorder:"#1c2e1f",
+  // Neutrals
+  gray50:"#f8f9fa", gray100:"#f3f4f6", gray200:"#e5e7eb",
+  gray300:"#d1d5db", gray400:"#9ca3af", gray500:"#6b7280",
+  gray600:"#4b5563", gray700:"#374151", gray900:"#111827",
+  white:"#ffffff",
+  // Status
+  red:"#dc2626", redLight:"#fee2e2",
   amber:"#f59e0b", amberLight:"#fffbeb",
   purple:"#7c3aed", purpleLight:"#f5f3ff",
   blue:"#2563eb", blueLight:"#eff6ff",

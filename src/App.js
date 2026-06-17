@@ -93,6 +93,7 @@ export default function App() {
   const [showNotifs,setShowNotifs]     = useState(false);
   const [notifItems,setNotifItems]     = useState([]);
   const [notifBadge,setNotifBadge]     = useState(0);
+  const [awaitingVerification,setAwaitingVerification] = useState(null);
 
   // ── load session ──
   useEffect(()=>{
@@ -101,9 +102,9 @@ export default function App() {
       if(session?.user) loadProfile(session.user.id);
       else setLoading(false);
     });
-    const { data:{ subscription } } = supabase.auth.onAuthStateChange((_,session)=>{
+    const { data:{ subscription } } = supabase.auth.onAuthStateChange((event,session)=>{
       setUser(session?.user||null);
-      if(session?.user) loadProfile(session.user.id);
+      if(session?.user){ if(event==="SIGNED_IN") setAwaitingVerification(null); loadProfile(session.user.id); }
       else { setProfile(null); setLoading(false); }
     });
     return ()=>subscription.unsubscribe();
@@ -198,7 +199,18 @@ export default function App() {
   }
   async function loadProfile(uid) {
     const { data } = await supabase.from("profiles").select("*").eq("id",uid).single();
-    setProfile(data);
+    if(!data){ await supabase.auth.signOut(); return; }
+    let profile = data;
+    if(profile && !profile.state) {
+      const { data:{ user:authUser } } = await supabase.auth.getUser();
+      const meta = authUser?.user_metadata;
+      if(meta?.state) {
+        const patch = { state:meta.state, city:meta.city||null, location:[meta.city,meta.state].filter(Boolean).join(", ")||null };
+        await supabase.from("profiles").update(patch).eq("id",uid);
+        profile = { ...profile, ...patch };
+      }
+    }
+    setProfile(profile);
     loadWishlist(uid);
     loadFollows(uid);
     setLoading(false);
@@ -275,13 +287,11 @@ export default function App() {
     if(reg.password.length<6){ setAuthError("Senha deve ter pelo menos 6 caracteres."); setAuthLoading(false); return; }
     if(!reg.state){ setAuthError("Selecione seu estado."); setAuthLoading(false); return; }
     if(!reg.city){ setAuthError("Selecione sua cidade."); setAuthLoading(false); return; }
-    const { error } = await supabase.auth.signUp({ email:reg.email,password:reg.password,options:{ data:{ full_name:reg.name } } });
-    if(error) setAuthError(error.message);
-    else {
-      const { data:{ session } } = await supabase.auth.getSession();
-      if(session) await supabase.from("profiles").update({ state:reg.state,city:reg.city,location:[reg.city,reg.state].filter(Boolean).join(", ")||null }).eq("id",session.user.id);
-      setAuthError("✅ Conta criada! Verifique seu email para confirmar.");
-    }
+    const { error } = await supabase.auth.signUp({ email:reg.email,password:reg.password,options:{ data:{ full_name:reg.name,state:reg.state,city:reg.city },emailRedirectTo:window.location.origin } });
+    if(error){
+      if(error.status===429||error.message?.toLowerCase().includes("rate limit")) setAuthError("Muitos cadastros no momento. Aguarde alguns minutos e tente novamente.");
+      else setAuthError(error.message);
+    } else { setShowAuth(false); setAwaitingVerification(reg.email); }
     setAuthLoading(false);
   }
   async function handleLogout() {
@@ -582,6 +592,30 @@ export default function App() {
 
   if(loading) return <div style={{ fontFamily:"system-ui,sans-serif",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center" }}><Spinner /></div>;
 
+  const pendingEmail = awaitingVerification || (user && !user.email_confirmed_at ? user.email : null);
+  if(pendingEmail) return (
+    <div style={{ fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:C.gray50,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"1.5rem" }}>
+      {toastEl}
+      <div style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:20,padding:"2.5rem 2rem",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 4px 24px rgba(0,0,0,.07)" }}>
+        <div style={{ fontSize:52,marginBottom:16 }}>✉️</div>
+        <h2 style={{ margin:"0 0 8px",fontWeight:700,fontSize:20 }}>Confirme seu email</h2>
+        <p style={{ margin:"0 0 6px",color:C.gray600,fontSize:14 }}>Enviamos um link de confirmação para:</p>
+        <p style={{ margin:"0 0 20px",fontWeight:600,fontSize:15,color:C.gray900 }}>{pendingEmail}</p>
+        <p style={{ margin:"0 0 24px",color:C.gray500,fontSize:13 }}>Clique no link do email para ativar sua conta. Verifique também a pasta de spam.</p>
+        <button onClick={async()=>{
+          const { error } = await supabase.auth.resend({ type:"signup", email:pendingEmail });
+          if(error) addToast("Erro ao reenviar email","error");
+          else addToast("Email reenviado! Verifique sua caixa de entrada.");
+        }} style={{ width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,marginBottom:10 }}>
+          Reenviar email de confirmação
+        </button>
+        <button onClick={async()=>{ await supabase.auth.signOut(); setAwaitingVerification(null); }} style={{ width:"100%",padding:"10px 0",background:"none",color:C.gray500,border:`1px solid ${C.gray200}`,borderRadius:12,cursor:"pointer",fontSize:14 }}>
+          Usar outra conta
+        </button>
+      </div>
+    </div>
+  );
+
   const authModal = showAuth&&(
     <div onClick={e=>{ if(e.target===e.currentTarget) setShowAuth(false); }} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",overflowY:"auto" }}>
       <div style={{ width:"100%",maxWidth:400,position:"relative" }}>
@@ -626,8 +660,10 @@ export default function App() {
               setAuthLoading(true);
               const { error } = await supabase.auth.resetPasswordForEmail(loginData.email, { redirectTo: window.location.origin });
               setAuthLoading(false);
-              if(error) setAuthError(error.message);
-              else setAuthError("✅ Link enviado! Verifique seu email para redefinir a senha.");
+              if(error){
+                if(error.status===429||error.message?.toLowerCase().includes("rate limit")) setAuthError("Muitos pedidos de recuperação. Aguarde alguns minutos e tente novamente.");
+                else setAuthError(error.message);
+              } else setAuthError("✅ Link enviado! Verifique seu email para redefinir a senha.");
             }} disabled={authLoading||!loginData.email}
               style={{ width:"100%",padding:"12px 0",background:C.green,color:C.white,border:"none",borderRadius:12,cursor:"pointer",fontSize:15,fontWeight:600,opacity:authLoading?.7:1 }}>
               {authLoading?"Enviando...":"Enviar link de recuperação"}
@@ -653,7 +689,7 @@ export default function App() {
 
   const notifsPanel = showNotifs&&(
     <div onClick={()=>setShowNotifs(false)} style={{ position:"fixed",inset:0,zIndex:3000 }}>
-      <div onClick={e=>e.stopPropagation()} style={{ position:"absolute",top:56,right:isMobile?8:16,width:isMobile?"calc(100vw - 16px)":350,maxHeight:500,background:C.white,borderRadius:14,boxShadow:"0 8px 40px rgba(0,0,0,.2)",display:"flex",flexDirection:"column",overflow:"hidden",border:`1px solid ${C.gray200}` }}>
+      <div onClick={e=>e.stopPropagation()} style={{ position:"absolute",top:isMobile?96:64,right:isMobile?8:16,width:isMobile?"calc(100vw - 16px)":350,maxHeight:500,background:C.white,borderRadius:14,boxShadow:"0 8px 40px rgba(0,0,0,.2)",display:"flex",flexDirection:"column",overflow:"hidden",border:`1px solid ${C.gray200}` }}>
         <div style={{ padding:"12px 16px 10px",borderBottom:`1px solid ${C.gray100}`,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
           <p style={{ margin:0,fontWeight:700,fontSize:14,color:C.gray900 }}>🔔 Notificações</p>
           <button onClick={()=>setShowNotifs(false)} style={{ background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:20,lineHeight:1,padding:0 }}>×</button>
@@ -751,67 +787,71 @@ export default function App() {
 
   /* ── NAVBAR ── */
   const NavBar = () => (<>
-    <div style={{ borderBottom:`1px solid ${C.gray100}`,marginBottom:20 }}>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"1rem 0 0.6rem" }}>
-        <div onClick={()=>navigate("home")} style={{ display:"flex",alignItems:"center",gap:8,cursor:"pointer" }}>
-          <div style={{ width:30,height:30,borderRadius:8,background:C.greenDark,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15 }}>⚽</div>
-          <span style={{ fontWeight:800,fontSize:16,color:C.gray900,letterSpacing:-.3 }}>FutShirt</span>
+    <div style={{ background:C.navBg,borderBottom:`1px solid ${C.navBorder}` }}>
+      <div style={{ maxWidth:1200,margin:"0 auto",padding:"0 16px" }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",height:60 }}>
+          <div onClick={()=>navigate("home")} style={{ display:"flex",alignItems:"center",gap:8,cursor:"pointer" }}>
+            <div style={{ width:32,height:32,borderRadius:8,background:"rgba(22,163,74,.2)",border:"1px solid rgba(22,163,74,.35)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>⚽</div>
+            <span style={{ fontWeight:800,fontSize:18,color:C.white,letterSpacing:-.5 }}>FutShirt</span>
+          </div>
+          {!isMobile&&<div style={{ display:"flex",gap:2 }}>
+            {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
+              <button key={v} onClick={()=>navigate(v)} style={{ background:"none",border:"none",fontSize:13,cursor:"pointer",padding:"8px 13px",borderRadius:8,fontWeight:page===v?700:400,color:page===v?C.greenBright:"rgba(255,255,255,.75)" }}>{l}</button>
+            ))}
+            {user&&<button onClick={()=>navigate("portfolio")} style={{ background:"none",border:"none",fontSize:13,cursor:"pointer",padding:"8px 13px",borderRadius:8,fontWeight:page==="portfolio"?700:400,color:page==="portfolio"?C.greenBright:"rgba(255,255,255,.75)" }}>Coleção</button>}
+            {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ background:"none",border:"none",fontSize:13,cursor:"pointer",padding:"8px 13px",borderRadius:8,fontWeight:page==="admin"?700:400,color:page==="admin"?C.amber:"rgba(255,255,255,.75)" }}>Admin</button>}
+          </div>}
+          <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
+            {user?<>
+              <button onClick={()=>navigate("wishlist")} style={{ position:"relative",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,padding:"6px 11px",cursor:"pointer",fontSize:14,color:page==="wishlist"?C.red:"rgba(255,255,255,.8)" }}>
+                ♥{wishlist.length>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{wishlist.length}</span>}
+                {alertMatches.length>0&&<span style={{ background:C.amber,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>🔔{alertMatches.length}</span>}
+              </button>
+              <button onClick={()=>navigate("messages")} style={{ position:"relative",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,padding:"6px 11px",cursor:"pointer",fontSize:14,color:page==="messages"?C.greenBright:"rgba(255,255,255,.8)" }}>
+                ✉️{unreadMessages>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{unreadMessages}</span>}
+              </button>
+              <button onClick={()=>{ setShowNotifs(v=>{ if(!v){ localStorage.setItem("fsm_notifs_seen",Date.now()); setNotifBadge(0); } return !v; }); }} style={{ position:"relative",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,padding:"6px 11px",cursor:"pointer",fontSize:14,color:showNotifs?C.greenBright:"rgba(255,255,255,.8)" }}>
+                🔔{notifBadge>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{notifBadge}</span>}
+              </button>
+              {!isMobile&&<button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:700,cursor:"pointer" }}>+ Anunciar</button>}
+              <div onClick={()=>navigate("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={32} src={profile?.avatar_url} /></div>
+              {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12,color:"rgba(255,255,255,.7)" }}>Sair</button>}
+            </>:<>
+              {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"7px 16px",borderRadius:8,border:"1px solid rgba(255,255,255,.25)",background:"transparent",color:"rgba(255,255,255,.9)",fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
+              {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"7px 16px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:700,cursor:"pointer" }}>Cadastrar</button>}
+              {isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,.25)",background:"transparent",color:"rgba(255,255,255,.9)",fontSize:12,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
+            </>}
+          </div>
         </div>
-        {!isMobile&&<div style={{ display:"flex",gap:4 }}>
+        {isMobile&&<div style={{ display:"flex",gap:0,paddingBottom:"0.5rem",overflowX:"auto",borderTop:"1px solid rgba(255,255,255,.1)" }}>
           {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
-            <button key={v} onClick={()=>navigate(v)} style={{ background:page===v?C.greenLight:"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600 }}>{l}</button>
+            <button key={v} onClick={()=>navigate(v)} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"7px 4px",fontWeight:page===v?700:400,color:page===v?C.greenBright:"rgba(255,255,255,.6)",whiteSpace:"nowrap",borderBottom:page===v?`2px solid ${C.green}`:"2px solid transparent" }}>{l}</button>
           ))}
-          {user&&<button onClick={()=>navigate("portfolio")} style={{ background:page==="portfolio"?"#eff6ff":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="portfolio"?600:400,color:page==="portfolio"?"#1d4ed8":C.gray600 }}>📚 Coleção</button>}
-          {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ background:page==="admin"?"#fef3c7":"none",border:"none",fontSize:13,cursor:"pointer",padding:"5px 10px",borderRadius:8,fontWeight:page==="admin"?600:400,color:page==="admin"?C.amber:C.gray600 }}>⚙️ Admin</button>}
-        </div>}
-        <div style={{ display:"flex",alignItems:"center",gap:isMobile?6:8 }}>
           {user?<>
-            <button onClick={()=>navigate("wishlist")} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="wishlist"?C.red:C.gray600 }}>
-              ♥{wishlist.length>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>{wishlist.length}</span>}
-              {alertMatches.length>0&&<span style={{ background:C.amber,color:C.white,borderRadius:99,fontSize:10,padding:"1px 5px",marginLeft:4 }}>🔔{alertMatches.length}</span>}
+            {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ flex:1,padding:"7px 4px",border:"none",background:"none",color:page==="admin"?C.amber:"rgba(255,255,255,.6)",fontSize:11,fontWeight:page==="admin"?700:400,cursor:"pointer",whiteSpace:"nowrap",borderBottom:page==="admin"?`2px solid ${C.amber}`:"2px solid transparent" }}>Admin</button>}
+            <button onClick={()=>navigate("portfolio")} style={{ flex:1,padding:"7px 4px",border:"none",background:"none",color:page==="portfolio"?C.greenBright:"rgba(255,255,255,.6)",fontSize:11,fontWeight:page==="portfolio"?700:400,cursor:"pointer",whiteSpace:"nowrap",borderBottom:page==="portfolio"?`2px solid ${C.green}`:"2px solid transparent" }}>Coleção</button>
+            <button onClick={()=>navigate("messages")} style={{ position:"relative",flex:1,padding:"7px 4px",border:"none",background:"none",color:page==="messages"?C.greenBright:"rgba(255,255,255,.6)",fontSize:11,fontWeight:page==="messages"?700:400,cursor:"pointer",whiteSpace:"nowrap",borderBottom:page==="messages"?`2px solid ${C.green}`:"2px solid transparent" }}>
+              ✉️{unreadMessages>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",marginLeft:2,fontWeight:700 }}>{unreadMessages}</span>}
             </button>
-            <button onClick={()=>navigate("messages")} style={{ position:"relative",background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:page==="messages"?C.green:C.gray600 }}>
-              ✉️{unreadMessages>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{unreadMessages}</span>}
-            </button>
-            <button onClick={()=>{ setShowNotifs(v=>{ if(!v){ localStorage.setItem("fsm_notifs_seen",Date.now()); setNotifBadge(0); } return !v; }); }} style={{ position:"relative",background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 11px",cursor:"pointer",fontSize:13,color:showNotifs?C.green:C.gray600 }}>
-              🔔{notifBadge>0&&<span style={{ position:"absolute",top:-5,right:-5,background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",fontWeight:700,lineHeight:1.4 }}>{notifBadge}</span>}
-            </button>
-            {!isMobile&&<button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ padding:"6px 13px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Anunciar</button>}
-            <div onClick={()=>navigate("myProfile")} style={{ cursor:"pointer" }}><Avatar name={profile?.name||"?"} size={30} src={profile?.avatar_url} /></div>
-            {!isMobile&&<button onClick={handleLogout} style={{ background:"none",border:`1px solid ${C.gray200}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontSize:12,color:C.gray600 }}>Sair</button>}
+            <button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ flex:1,padding:"7px 4px",border:"none",background:"none",color:C.greenBright,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
+            <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"7px 4px",color:"rgba(255,255,255,.4)",whiteSpace:"nowrap" }}>Sair</button>
           </>:<>
-            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:13,fontWeight:600,cursor:"pointer" }}>Entrar</button>}
-            {!isMobile&&<button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ padding:"6px 14px",borderRadius:9,border:"none",background:C.green,color:C.white,fontSize:13,fontWeight:600,cursor:"pointer" }}>Cadastrar</button>}
+            <button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ flex:1,padding:"7px 4px",border:"none",background:"none",color:C.greenBright,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Anunciar</button>
           </>}
-        </div>
+        </div>}
       </div>
-      {isMobile&&<div style={{ display:"flex",gap:2,paddingBottom:"0.5rem",overflowX:"auto" }}>
-        {[["home","🏠 Home"],["catalog","📋 Catálogo"],["sellers","👥 Vendedores"]].map(([v,l])=>(
-          <button key={v} onClick={()=>navigate(v)} style={{ flex:1,background:page===v?C.greenLight:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,fontWeight:page===v?600:400,color:page===v?C.green:C.gray600,whiteSpace:"nowrap" }}>{l}</button>
-        ))}
-        {user?<>
-          {profile?.role==="admin"&&<button onClick={()=>navigate("admin")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="admin"?"#fef3c7":"none",color:C.amber,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>⚙️ Admin</button>}
-          <button onClick={()=>navigate("portfolio")} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="portfolio"?"#eff6ff":"none",color:"#1d4ed8",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>📚 Coleção</button>
-          <button onClick={()=>navigate("messages")} style={{ position:"relative",flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:page==="messages"?C.greenLight:"none",color:page==="messages"?C.green:C.gray600,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>
-            ✉️{unreadMessages>0&&<span style={{ background:C.red,color:C.white,borderRadius:99,fontSize:9,padding:"1px 4px",marginLeft:2,fontWeight:700 }}>{unreadMessages}</span>}
-          </button>
-          <button onClick={()=>requireAuth(()=>navigate("addProduct"))} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>+ Anunciar</button>
-          <button onClick={handleLogout} style={{ flex:1,background:"none",border:"none",fontSize:11,cursor:"pointer",padding:"5px 2px",borderRadius:8,color:C.gray600,whiteSpace:"nowrap" }}>Sair</button>
-        </>:<>
-          <button onClick={()=>{ setShowAuth(true); setAuthStep("login"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Entrar</button>
-          <button onClick={()=>{ setShowAuth(true); setAuthStep("register"); setAuthError(""); }} style={{ flex:1,padding:"5px 2px",borderRadius:8,border:"none",background:C.green,color:C.white,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" }}>Cadastrar</button>
-        </>}
-      </div>}
     </div>
     {notifsPanel}
   </>);
 
   const wrap = (content, maxWidth=1200, extraLayers=null) => (
-    <div style={{ fontFamily:"system-ui,sans-serif",maxWidth,margin:"0 auto",padding:"0 0 4rem" }}>
+    <div style={{ fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:C.gray50,minHeight:"100vh" }}>
       <NavBar />
-      {content}
-      {extraLayers}
-      {authModal}{toastEl}
+      <div style={{ maxWidth,margin:"0 auto",padding:"0 16px 4rem",boxSizing:"border-box" }}>
+        {content}
+        {extraLayers}
+        {authModal}{toastEl}
+      </div>
     </div>
   );
 
@@ -1146,6 +1186,7 @@ export default function App() {
         <MessagesPage
           user={user} dmTarget={dmTarget}
           clearDmTarget={()=>setDmTarget(null)}
+          addToast={addToast}
         />
         <Footer onNavigate={t=>t==="addProduct"?requireAuth(()=>navigate(t)):navigate(t)} />
       </>

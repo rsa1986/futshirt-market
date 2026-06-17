@@ -4,15 +4,18 @@ import {
   CATEGORY_TILES, BANNERS_DEFAULT, BR_CLUBS, isBoosted, isUrl, parseImg,
 } from "./constants";
 
-/* ── SHIMMER ── */
-;(function injectShimmer(){
-  if(typeof document==="undefined"||document.getElementById("fsm-shimmer")) return;
+/* ── ANIMATIONS ── */
+;(function injectStyles(){
+  if(typeof document==="undefined"||document.getElementById("fsm-styles")) return;
   const s=document.createElement("style");
-  s.id="fsm-shimmer";
-  s.textContent="@keyframes fsm-shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}";
+  s.id="fsm-styles";
+  s.textContent=`
+    @keyframes fsm-shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+    @keyframes fsm-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+  `;
   document.head.appendChild(s);
 })();
-export const shimmerBase = { background:"linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)", backgroundSize:"1200px 100%", animation:"fsm-shimmer 1.3s infinite linear", borderRadius:6 };
+export const shimmerBase = { background:"linear-gradient(90deg,#e8eaed 25%,#d3d6db 50%,#e8eaed 75%)", backgroundSize:"1200px 100%", animation:"fsm-shimmer 1.3s infinite linear", borderRadius:6 };
 
 /* ── MOBILE HOOK ── */
 export function useMobile(bp=640) {
@@ -132,7 +135,12 @@ export function SectionHead({ icon,title,sub,action,onAction }) {
 }
 
 export function Spinner() {
-  return <div style={{ textAlign:"center",padding:"3rem",color:C.gray400 }}><div style={{ fontSize:32,marginBottom:8 }}>⏳</div><p>Carregando...</p></div>;
+  return (
+    <div style={{ textAlign:"center",padding:"3rem" }}>
+      <div style={{ width:36,height:36,border:`3px solid ${C.gray200}`,borderTop:`3px solid ${C.green}`,borderRadius:"50%",animation:"fsm-spin 0.75s linear infinite",margin:"0 auto 14px" }} />
+      <p style={{ margin:0,fontSize:14,color:C.gray500 }}>Carregando...</p>
+    </div>
+  );
 }
 
 export function SkeletonCard() {
@@ -197,50 +205,55 @@ export function BannerCarousel({ onCta, banners }) {
 
 /* ── SHIRT CARD ── */
 export function ShirtCard({ s, wishlist, toggleWishlist, onOpen }) {
-  const disc      = s.price_old ? Math.round((1 - s.price / s.price_old) * 100) : 0;
-  const photo     = (s.photos || [])[0] || "⚽";
-  const isNew     = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 24 * 60 * 60 * 1000;
-  const boosted   = isBoosted(s);
+  const [hov, setHov] = useState(false);
+  const disc    = s.price_old ? Math.round((1 - s.price / s.price_old) * 100) : 0;
+  const photo   = (s.photos || [])[0] || "⚽";
+  const isNew   = s.created_at && (Date.now() - new Date(s.created_at).getTime()) < 24 * 60 * 60 * 1000;
+  const boosted = isBoosted(s);
   return (
-    <div onClick={() => onOpen(s.id)} style={{ background:C.white,border:`1px solid ${C.gray200}`,borderRadius:16,overflow:"hidden",cursor:"pointer",display:"flex",flexDirection:"column" }}>
+    <div
+      onClick={() => onOpen(s.id)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ background:C.white,border:`1px solid ${hov?C.gray300:C.gray200}`,borderRadius:12,overflow:"hidden",cursor:"pointer",display:"flex",flexDirection:"column",boxShadow:hov?"0 8px 24px rgba(0,0,0,.12)":"0 1px 4px rgba(0,0,0,.05)",transform:hov?"translateY(-3px)":"translateY(0)",transition:"all .2s ease" }}
+    >
       <div style={{ background:C.gray50,position:"relative" }}>
-        <ShirtPhoto value={photo} size={140} />
+        <ShirtPhoto value={photo} size={160} />
         {s.status === "vendido" && (
-          <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3 }}>
-            <span style={{ background:"#111",color:"#fff",fontSize:11,fontWeight:700,padding:"5px 14px",borderRadius:6,letterSpacing:1.5 }}>VENDIDO</span>
+          <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3 }}>
+            <span style={{ background:"#111",color:"#fff",fontSize:11,fontWeight:700,padding:"5px 14px",borderRadius:6,letterSpacing:2 }}>VENDIDO</span>
           </div>
         )}
         {(s.photos || []).length > 1 && (
-          <span style={{ position:"absolute",bottom:6,right:8,fontSize:10,color:C.gray400,background:C.white,borderRadius:5,padding:"1px 5px",border:`1px solid ${C.gray200}` }}>
-            +{s.photos.length - 1}
+          <span style={{ position:"absolute",bottom:6,right:8,fontSize:10,color:C.gray600,background:"rgba(255,255,255,.92)",borderRadius:5,padding:"2px 7px",border:`1px solid ${C.gray200}`,fontWeight:500 }}>
+            +{s.photos.length - 1} fotos
           </span>
         )}
-        {(disc > 0 || isNew || boosted || s.status==="para_troca") && (
+        {(disc > 0 || isNew || boosted) && (
           <div style={{ position:"absolute",top:8,left:8,display:"flex",flexDirection:"column",gap:3 }}>
-            {boosted && <span style={{ background:"linear-gradient(90deg,#f59e0b,#f97316)",color:C.white,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start",letterSpacing:.4 }}>⚡ Destaque</span>}
-            {disc > 0 && <span style={{ background:C.red,color:C.white,fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start" }}>-{disc}%</span>}
-            {isNew && <span style={{ background:C.green,color:C.white,fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start" }}>✨ Novo</span>}
-            {s.status==="para_troca" && <span style={{ background:"#f5f3ff",color:"#7c3aed",fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,alignSelf:"flex-start",border:"1px solid #c4b5fd" }}>🔄 Troca</span>}
+            {boosted && <span style={{ background:"linear-gradient(90deg,#f59e0b,#f97316)",color:C.white,fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:6,letterSpacing:.5 }}>⚡ DESTAQUE</span>}
+            {disc > 0 && <span style={{ background:C.red,color:C.white,fontSize:11,fontWeight:700,padding:"3px 8px",borderRadius:6 }}>-{disc}%</span>}
+            {isNew && <span style={{ background:C.green,color:C.white,fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:6 }}>NOVO</span>}
           </div>
         )}
         <button onClick={(e) => { e.stopPropagation(); toggleWishlist(s.id); }}
-          style={{ position:"absolute",top:8,right:8,background:"rgba(255,255,255,.85)",border:"none",width:28,height:28,borderRadius:"50%",fontSize:15,cursor:"pointer",color:wishlist.includes(s.id)?C.red:C.gray400 }}>
+          style={{ position:"absolute",top:8,right:8,background:"rgba(255,255,255,.9)",border:"none",width:30,height:30,borderRadius:"50%",fontSize:16,cursor:"pointer",color:wishlist.includes(s.id)?C.red:C.gray400,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,.15)" }}>
           {wishlist.includes(s.id) ? "♥" : "♡"}
         </button>
       </div>
-      <div style={{ padding:"10px 12px 13px",flex:1,display:"flex",flexDirection:"column",gap:5 }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
-          <p style={{ margin:0,fontWeight:600,fontSize:13,color:C.gray900 }}>{s.team}</p>
+      <div style={{ padding:"12px 14px 14px",flex:1,display:"flex",flexDirection:"column",gap:5 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:6 }}>
+          <p style={{ margin:0,fontWeight:700,fontSize:13,color:C.gray900,lineHeight:1.3,flex:1 }}>{s.team}</p>
           <Tag rarity={s.rarity} />
         </div>
-        <p style={{ margin:0,color:C.gray400,fontSize:11 }}>{s.year} · {s.edition}</p>
+        <p style={{ margin:0,color:C.gray500,fontSize:11 }}>{s.year}{s.edition?` · ${s.edition}`:""}</p>
         <div style={{ display:"flex",alignItems:"center",gap:4 }}>
           <Star v={s.rating} />
           <span style={{ fontSize:11,color:C.gray400 }}>({s.reviews || 0})</span>
         </div>
-        <div style={{ display:"flex",alignItems:"baseline",gap:7,marginTop:"auto" }}>
-          <span style={{ fontWeight:700,color:C.green,fontSize:15 }}>R$ {Number(s.price).toLocaleString("pt-BR")}</span>
-          {s.price_old && <span style={{ fontSize:11,color:C.gray400,textDecoration:"line-through" }}>R$ {Number(s.price_old).toLocaleString("pt-BR")}</span>}
+        <div style={{ display:"flex",alignItems:"baseline",gap:8,marginTop:"auto",paddingTop:8,borderTop:`1px solid ${C.gray100}` }}>
+          <span style={{ fontWeight:800,color:C.green,fontSize:17 }}>R$ {Number(s.price).toLocaleString("pt-BR")}</span>
+          {s.price_old && <span style={{ fontSize:12,color:C.gray400,textDecoration:"line-through" }}>R$ {Number(s.price_old).toLocaleString("pt-BR")}</span>}
         </div>
       </div>
     </div>
@@ -380,12 +393,21 @@ export function ContactModal({ seller, onClose }) {
 /* ── TRUST BAR ── */
 export function TrustBar() {
   const isMobile = useMobile();
-  const items = ["✅ Vendedores verificados","⭐ Avaliações reais","🔒 Compra 100% segura","💬 Suporte via WhatsApp"];
+  const items = [
+    { icon:"✓", label:"Vendedores verificados" },
+    { icon:"★", label:"Avaliações reais" },
+    { icon:"🔒", label:"Compra 100% segura" },
+    { icon:"💬", label:"Suporte via WhatsApp" },
+  ];
+  const show = isMobile ? items.slice(0,2) : items;
   return (
-    <div style={{ background:"#f0fdf4",border:"1px solid #d1fae5",borderRadius:10,padding:"8px 14px",marginBottom:20 }}>
-      <div style={{ display:"flex",justifyContent:"center",gap:isMobile?14:32,flexWrap:"wrap" }}>
-        {(isMobile?items.slice(0,2):items).map(t=>(
-          <span key={t} style={{ fontSize:12,fontWeight:500,color:"#166534" }}>{t}</span>
+    <div style={{ background:"#e8f5e9",borderBottom:"1px solid #c8e6c9",marginLeft:-16,marginRight:-16,marginBottom:20,padding:"10px 32px" }}>
+      <div style={{ display:"flex",justifyContent:"center",gap:isMobile?20:48,flexWrap:"wrap" }}>
+        {show.map(t=>(
+          <div key={t.label} style={{ display:"flex",alignItems:"center",gap:6 }}>
+            <span style={{ fontSize:13,color:C.green,fontWeight:700 }}>{t.icon}</span>
+            <span style={{ fontSize:12,fontWeight:600,color:C.greenDark,letterSpacing:.2 }}>{t.label}</span>
+          </div>
         ))}
       </div>
     </div>
@@ -395,14 +417,17 @@ export function TrustBar() {
 /* ── CATEGORY TILES ── */
 export function CategoryTiles({ onNavigate, setFilters }) {
   const isMobile = useMobile();
+  const [hovIdx, setHovIdx] = useState(null);
   return (
     <div style={{ display:"grid",gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(6,1fr)",gap:10,marginBottom:28 }}>
-      {CATEGORY_TILES.map(tile=>(
+      {CATEGORY_TILES.map((tile,i)=>(
         <div key={tile.label}
           onClick={()=>{ setFilters(f=>({...f,...tile.filters})); onNavigate("catalog"); }}
-          style={{ background:tile.bg,border:`1.5px solid ${tile.color}33`,borderRadius:14,padding:isMobile?"10px 6px":"16px 8px",textAlign:"center",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:5 }}>
-          <span style={{ fontSize:isMobile?22:28 }}>{tile.icon}</span>
-          <span style={{ fontSize:10,fontWeight:600,color:tile.color,lineHeight:1.3 }}>{tile.label}</span>
+          onMouseEnter={()=>setHovIdx(i)}
+          onMouseLeave={()=>setHovIdx(null)}
+          style={{ background:tile.bg,border:`1.5px solid ${hovIdx===i?tile.color:tile.color+"44"}`,borderRadius:12,padding:isMobile?"10px 6px":"16px 8px",textAlign:"center",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:5,boxShadow:hovIdx===i?"0 4px 12px rgba(0,0,0,.1)":"0 1px 3px rgba(0,0,0,.04)",transform:hovIdx===i?"translateY(-2px)":"none",transition:"all .18s ease" }}>
+          <span style={{ fontSize:isMobile?22:26 }}>{tile.icon}</span>
+          <span style={{ fontSize:10,fontWeight:700,color:tile.color,lineHeight:1.3,letterSpacing:.2 }}>{tile.label}</span>
         </div>
       ))}
     </div>
@@ -412,49 +437,49 @@ export function CategoryTiles({ onNavigate, setFilters }) {
 /* ── FOOTER ── */
 export function Footer({ onNavigate }) {
   return (
-    <div style={{ marginTop:48,borderTop:"1px solid #e5e7eb",paddingTop:32,paddingBottom:20 }}>
-      <div style={{ display:"flex",flexWrap:"wrap",gap:32,justifyContent:"space-between",marginBottom:20 }}>
+    <div style={{ background:C.footerBg,marginTop:48,marginLeft:-16,marginRight:-16,padding:"40px 32px 24px" }}>
+      <div style={{ display:"flex",flexWrap:"wrap",gap:32,justifyContent:"space-between",marginBottom:32 }}>
         <div>
-          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
-            <div style={{ width:28,height:28,borderRadius:7,background:"#14532d",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>⚽</div>
-            <span style={{ fontWeight:800,fontSize:15,color:"#111827" }}>FutShirt Market</span>
+          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
+            <div style={{ width:32,height:32,borderRadius:8,background:"rgba(22,163,74,.18)",border:"1px solid rgba(22,163,74,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>⚽</div>
+            <span style={{ fontWeight:800,fontSize:17,color:C.white,letterSpacing:-.3 }}>FutShirt Market</span>
           </div>
-          <p style={{ margin:0,fontSize:12,color:"#9ca3af",maxWidth:200,lineHeight:1.6 }}>O mercado de camisetas de futebol mais completo do Brasil.</p>
+          <p style={{ margin:0,fontSize:12,color:"rgba(255,255,255,.45)",maxWidth:200,lineHeight:1.7 }}>O mercado de camisetas de futebol mais completo do Brasil.</p>
         </div>
         <div>
-          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Navegar</p>
+          <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:10,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1.5 }}>Navegar</p>
           {[["home","Home"],["catalog","Catálogo"],["sellers","Vendedores"]].map(([v,l])=>(
-            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>{l}</span></div>
+            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"rgba(255,255,255,.6)",cursor:"pointer",display:"block",lineHeight:2.2 }}>{l}</span></div>
           ))}
         </div>
         <div>
-          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Vendedores</p>
-          <div><span onClick={()=>onNavigate("sellers")} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>Ver todos os vendedores</span></div>
-          <div><span onClick={()=>onNavigate("addProduct")} style={{ fontSize:13,color:"#16a34a",cursor:"pointer",display:"block",lineHeight:2,fontWeight:600 }}>+ Anunciar camiseta</span></div>
-          <div><span onClick={()=>onNavigate("page-como-vender")} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>Como Vender</span></div>
+          <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:10,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1.5 }}>Vendedores</p>
+          <div><span onClick={()=>onNavigate("sellers")} style={{ fontSize:13,color:"rgba(255,255,255,.6)",cursor:"pointer",display:"block",lineHeight:2.2 }}>Ver todos</span></div>
+          <div><span onClick={()=>onNavigate("addProduct")} style={{ fontSize:13,color:C.greenBright,cursor:"pointer",display:"block",lineHeight:2.2,fontWeight:600 }}>+ Anunciar camiseta</span></div>
+          <div><span onClick={()=>onNavigate("page-como-vender")} style={{ fontSize:13,color:"rgba(255,255,255,.6)",cursor:"pointer",display:"block",lineHeight:2.2 }}>Como Vender</span></div>
         </div>
         <div>
-          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Institucional</p>
+          <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:10,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1.5 }}>Institucional</p>
           {[["page-quem-somos","Quem Somos"],["page-como-funciona","Como Funciona"],["page-faq","FAQ"]].map(([v,l])=>(
-            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>{l}</span></div>
+            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"rgba(255,255,255,.6)",cursor:"pointer",display:"block",lineHeight:2.2 }}>{l}</span></div>
           ))}
         </div>
         <div>
-          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Legal</p>
+          <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:10,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1.5 }}>Legal</p>
           {[["page-termos-de-uso","Termos de Uso"],["page-politica-de-privacidade","Política de Privacidade"]].map(([v,l])=>(
-            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"#4b5563",cursor:"pointer",display:"block",lineHeight:2 }}>{l}</span></div>
+            <div key={v}><span onClick={()=>onNavigate(v)} style={{ fontSize:13,color:"rgba(255,255,255,.6)",cursor:"pointer",display:"block",lineHeight:2.2 }}>{l}</span></div>
           ))}
         </div>
         <div>
-          <p style={{ margin:"0 0 8px",fontWeight:600,fontSize:11,color:"#374151",textTransform:"uppercase",letterSpacing:1 }}>Confiança</p>
-          {["Vendedores verificados","Avaliações reais","Compra 100% segura","Suporte via WhatsApp"].map(t=>(
-            <div key={t}><span style={{ fontSize:12,color:"#6b7280",lineHeight:2,display:"block" }}>{t}</span></div>
+          <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:10,color:"rgba(255,255,255,.3)",textTransform:"uppercase",letterSpacing:1.5 }}>Confiança</p>
+          {["✓ Vendedores verificados","★ Avaliações reais","🔒 Compra segura","💬 Suporte WhatsApp"].map(t=>(
+            <div key={t}><span style={{ fontSize:12,color:"rgba(255,255,255,.4)",lineHeight:2.2,display:"block" }}>{t}</span></div>
           ))}
         </div>
       </div>
-      <div style={{ borderTop:"1px solid #f3f4f6",paddingTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8 }}>
-        <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>© 2026 FutShirt Market — Todos os direitos reservados.</p>
-        <p style={{ margin:0,fontSize:12,color:"#9ca3af" }}>Feito para colecionadores de camisetas</p>
+      <div style={{ borderTop:"1px solid rgba(255,255,255,.08)",paddingTop:18,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8 }}>
+        <p style={{ margin:0,fontSize:12,color:"rgba(255,255,255,.25)" }}>© 2026 FutShirt Market — Todos os direitos reservados.</p>
+        <p style={{ margin:0,fontSize:12,color:"rgba(255,255,255,.25)" }}>Feito para colecionadores de camisetas</p>
       </div>
     </div>
   );
